@@ -11,7 +11,7 @@ import {
   createPricingFeatureSchema,
   updatePricingFeatureSchema
 } from './systemAdmin.validation.js';
-import { upload } from '../../middleware/multer.middleware.js';
+import { uploadCompanyProfile } from '../../middleware/multer.middleware.js';
 
 const r = Router();
 r.use(auth(false)); // all system admin endpoints require auth
@@ -42,7 +42,7 @@ r.delete('/pricing-features/:id', ctrl.removePricingFeature);
 // --- COMPANY PROFILES (Onboarding Wizard) ---
 r.post(
   '/company-profiles',
-  upload.fields([
+  uploadCompanyProfile.fields([
     { name: 'companyLogo', maxCount: 1 },
     { name: 'tinDocument', maxCount: 1 },
     { name: 'businessLicense', maxCount: 1 },
@@ -68,3 +68,4 @@ r.get('/logs', ctrl.getLogs);
 r.get('/system-health', ctrl.getSystemHealth);
 
 export default r;
+
