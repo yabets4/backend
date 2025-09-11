@@ -1,4 +1,5 @@
 import pool from '../../loaders/db.loader.js';
+import { tenantQueries } from './query.js';
 
 export default class SystemAdminModel {
   constructor() {}
@@ -176,21 +177,29 @@ export default class SystemAdminModel {
   }
 
   // --- COMPANY LOCATIONS ---
-  async createLocations(companyId, locations) {
-    const created = [];
-    for (const loc of locations) {
-      const keys = Object.keys(loc);
-      const cols = ['company_id', ...keys].map(k => `"${k}"`).join(', ');
-      const params = ['$1', ...keys.map((_, i) => `$${i + 2}`)].join(', ');
-      const values = [companyId, ...Object.values(loc)];
-      const { rows } = await pool.query(
-        `INSERT INTO company_locations (${cols}) VALUES (${params}) RETURNING *`,
-        values
-      );
-      created.push(rows[0]);
-    }
-    return created;
+// model.js
+async createLocations(tableName, locations) {
+  if (!Array.isArray(locations) || locations.length === 0) return [];
+
+  const created = [];
+
+  for (const loc of locations) {
+    const keys = Object.keys(loc);
+    const cols = keys.map(k => `"${k}"`).join(', ');
+    const params = keys.map((_, i) => `$${i + 1}`).join(', ');
+
+    const { rows } = await pool.query(
+      `INSERT INTO ${tableName} (${cols}) VALUES (${params}) RETURNING *`,
+      Object.values(loc)
+    );
+
+    created.push(rows[0]);
   }
+
+  return created;
+}
+
+
 
   async getLocations(companyId) {
     const { rows } = await pool.query(
@@ -201,29 +210,16 @@ export default class SystemAdminModel {
   }
 
   // --- PAYMENTS ---
-async createPayment(payload) {
-  const keys = Object.keys(payload);
-  const cols = keys.map(k => `"${k}"`).join(', ');
-
-  // Make a copy of values
-  const values = Object.values(payload).map((v, i) => {
-    // If the key is payment_details and it exists, stringify it
-    if (keys[i] === "payment_details" && v != null) {
-      return JSON.stringify(v);
-    }
-    return v;
-  });
-
-  const params = keys.map((_, i) => `$${i + 1}`).join(', ');
-
-  const { rows } = await pool.query(
-    `INSERT INTO company_payments (${cols}) VALUES (${params}) RETURNING *`,
-    values
-  );
-
-  return rows[0];
-}
-
+  async createPayment(payload) {
+    const keys = Object.keys(payload);
+    const cols = keys.map(k => `"${k}"`).join(', ');
+    const params = keys.map((_, i) => `$${i + 1}`).join(', ');
+    const { rows } = await pool.query(
+      `INSERT INTO company_payments (${cols}) VALUES (${params}) RETURNING *`,
+      Object.values(payload)
+    );
+    return rows[0];
+  }
 
   // --- TENANT USERS ---
   async createTenantUsers(tableName, users) {
@@ -242,18 +238,14 @@ async createPayment(payload) {
     return created;
   }
 
-  async createTenantUsersTable(tableName) {
-    return pool.query(`
-      CREATE TABLE IF NOT EXISTS ${tableName} (
-        id BIGSERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        phone VARCHAR(50),
-        password VARCHAR(255) NOT NULL,
-        role VARCHAR(50),
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-  }
-}
+   async createTenantUsersTable(prefix) {
+    const queries = tenantQueries(prefix);
 
+    for (const query of queries) {
+      await pool.query(query);
+    }
+
+    console.log(`✅ Tenant tables created for prefix: ${prefix}`);
+  }
+
+}

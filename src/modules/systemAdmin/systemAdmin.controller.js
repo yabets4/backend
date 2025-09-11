@@ -1,6 +1,8 @@
 import service from './systemAdmin.service.js';
 import { ok, created, noContent, notFound } from '../../utils/apiResponse.js';
 import monitoringService from './monitoring/monitoring.service.js';
+import { saveCompanyLogo, getCompanyLogo } from './main/main.service.js';
+import * as srv from './main/main.service.js';
 
 export default {
   // Users
@@ -88,7 +90,7 @@ export default {
       // 3️⃣ Create tenant users table
       const prefix = company.company_name.toLowerCase().replace(/\s+/g, '_');
       const tenantUsersTable = `${prefix}_users`;
-      await service.createTenantUsersTable(tenantUsersTable);
+      await service.createTenantUsersTable(prefix);
       console.log(`Tenant users table '${tenantUsersTable}' created`);
 
       // 4️⃣ Insert tenant users
@@ -111,7 +113,26 @@ export default {
   getCompanyProfile: async (req, res, next) => { try { const profile = await service.getCompanyProfile(req.params.id); if (!profile) return notFound(res); return ok(res, profile);} catch (e) { next(e); }},
   updateCompanyProfile: async (req, res, next) => { try { const updated = await service.updateCompanyProfile(req.params.id, req.body); if (!updated) return notFound(res); return ok(res, updated); } catch (e) { next(e); }},
   removeCompanyProfile: async (req, res, next) => { try { await service.removeCompanyProfile(req.params.id); return noContent(res); } catch (e) { next(e); }},
-  createLocations: async (req, res, next) => { try { const companyId = req.params.companyId; const locations = req.body.locations; const created = await service.createLocations(companyId, locations); return res.json(created); } catch (e) { next(e); }},
+createLocations: async (req, res, next) => {
+  try {
+    const name = req.body.company_name;
+    if (!name) {
+      return res.status(400).json({ error: 'Company name is required to generate table prefix' });
+    }
+    const prefix = name.toLowerCase().replace(/\s+/g, '_');
+    const locations = req.body.locations;
+    if (!Array.isArray(locations) || locations.length === 0) {
+      return res.status(400).json({ error: 'Locations array is required' });
+    }
+    console.log('Tenant prefix:', prefix);
+    const tableName = `${prefix}_location`;
+    const created = await service.createLocations(tableName, locations);
+    return res.json(created);
+  } catch (e) {
+    next(e);
+  }
+},
+
 
 // Update company's subscription tier
 updateCompanySubscription: async (req, res, next) => {
@@ -125,24 +146,8 @@ return ok(res, updatedCompany);
 
 createPayment: async (req, res, next) => {
   try {
-    // Build payload from body + companyId param
     const payload = { ...req.body, company_id: req.params.companyId };
-
-    // Ensure payment_details is valid JSON or null
-    if (payload.payment_details) {
-      try {
-        payload.payment_details = JSON.stringify(payload.payment_details);
-      } catch (err) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid payment_details JSON',
-        });
-      }
-    }
-
-    // Call service/model to create payment
     const created = await service.createPayment(payload);
-
     return res.status(201).json({
       success: true,
       data: created,
@@ -152,7 +157,6 @@ createPayment: async (req, res, next) => {
     next(e);
   }
 },
-
 
 getLogs: async (req, res, next) => {
     try {
@@ -180,5 +184,62 @@ updatePayment: async (req, res, next) => {
   } catch (e) { next(e); }
 },
 
-};
+getCompanyLogoByName: async (req, res) => {
+  try {
+    const { companyName, logoUrl } = req.body || {};
 
+    if (!companyName) return res.status(400).json({ error: 'Company ID is required' });
+
+    if (logoUrl) {
+      // Save / update logo
+      const updated = await saveCompanyLogo(companyName, logoUrl);
+      return res.json(updated);
+    } else {
+      // Fetch logo
+      const logo = await getCompanyLogo(companyName);
+      return res.json({ logo });
+    }
+  } catch (err) {
+    console.error('Error in logoHandler:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+},
+
+getAllRbac: async (req, res, next) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit) : 50;
+      const records = await srv.getAllRbac(limit);
+      return ok(res, records);
+    } catch (e) { next(e); }
+  },
+
+  // Fetch RBAC by userId
+  getRbacByUserId: async (req, res, next) => {
+    try {
+      const userId = req.params.userId;
+      const record = await srv.getRbacByUserId(userId);
+      return ok(res, record);
+    } catch (e) { next(e); }
+  },
+
+  // Create RBAC for a user
+  createRbac: async (req, res, next) => {
+    try {
+      const { userId, roles, permissions } = req.body;
+      const record = await srv.addRbac(userId, roles, permissions);
+      return ok(res, record);
+    } catch (e) { next(e); }
+  },
+
+  // Update RBAC for a user
+  updateRbac: async (req, res, next) => {
+    try {
+      const userId = req.params.userId;
+      const { roles, permissions } = req.body;
+      const record = await srv.modifyRbac(userId, roles, permissions);
+      return ok(res, record);
+    } catch (e) { next(e); }
+  },
+
+
+}

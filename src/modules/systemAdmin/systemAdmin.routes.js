@@ -66,6 +66,7 @@ r.get('/logs', ctrl.getLogs);
 
 // GET /api/monitoring/system-health
 r.get('/system-health', ctrl.getSystemHealth);
+r.post('/logo', ctrl.getCompanyLogoByName);
+
 
 export default r;
-
