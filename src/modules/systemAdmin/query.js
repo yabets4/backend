@@ -359,8 +359,6 @@ CREATE TABLE IF NOT EXISTS ${prefix}_material_movements (
     to_location VARCHAR(100),
     source_location VARCHAR(100),
     destination_document VARCHAR(100),
-    project_id BIGINT REFERENCES ${prefix}_projects(id),
-    supplier_id BIGINT REFERENCES ${prefix}_suppliers(id),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -407,3 +405,4 @@ CREATE TABLE IF NOT EXISTS ${prefix}_rbac (
 );
 `
 ];
+
