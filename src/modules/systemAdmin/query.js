@@ -107,6 +107,31 @@ CREATE TABLE IF NOT EXISTS ${prefix}_customers (
   FOR EACH ROW
   EXECUTE FUNCTION generate_user_id();
   `,
+  
+  // Products
+  `
+  CREATE TABLE IF NOT EXISTS ${prefix}_products (
+    id BIGSERIAL PRIMARY KEY,
+    product_id VARCHAR(50) UNIQUE NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    category VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'Active', -- e.g., Active, Inactive
+    uom VARCHAR(50), -- Unit of Measure
+    product_type VARCHAR(50),
+    cost_price NUMERIC(12,2),
+    price NUMERIC(12,2),
+    description TEXT,
+    tags TEXT[], -- Array of tags
+    length NUMERIC(10,2),
+    width NUMERIC(10,2),
+    height NUMERIC(10,2),
+    dimension_unit VARCHAR(20),
+    weight_value NUMERIC(10,2),
+    weight_unit VARCHAR(20),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+`,
 
   // Orders
   `
@@ -189,30 +214,6 @@ FOR EACH ROW
 EXECUTE FUNCTION update_order_total();
 `,
 
-  // Products
-  `
-  CREATE TABLE IF NOT EXISTS ${prefix}_products (
-    id BIGSERIAL PRIMARY KEY,
-    product_id VARCHAR(50) UNIQUE NOT NULL,
-    product_name VARCHAR(255) NOT NULL,
-    category VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'Active', -- e.g., Active, Inactive
-    uom VARCHAR(50), -- Unit of Measure
-    product_type VARCHAR(50),
-    cost_price NUMERIC(12,2),
-    price NUMERIC(12,2),
-    description TEXT,
-    tags TEXT[], -- Array of tags
-    length NUMERIC(10,2),
-    width NUMERIC(10,2),
-    height NUMERIC(10,2),
-    dimension_unit VARCHAR(20),
-    weight_value NUMERIC(10,2),
-    weight_unit VARCHAR(20),
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-`,
 
   // Employees + related tables
   `
