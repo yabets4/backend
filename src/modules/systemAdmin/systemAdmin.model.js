@@ -201,16 +201,29 @@ export default class SystemAdminModel {
   }
 
   // --- PAYMENTS ---
-  async createPayment(payload) {
-    const keys = Object.keys(payload);
-    const cols = keys.map(k => `"${k}"`).join(', ');
-    const params = keys.map((_, i) => `$${i + 1}`).join(', ');
-    const { rows } = await pool.query(
-      `INSERT INTO company_payments (${cols}) VALUES (${params}) RETURNING *`,
-      Object.values(payload)
-    );
-    return rows[0];
-  }
+async createPayment(payload) {
+  const keys = Object.keys(payload);
+  const cols = keys.map(k => `"${k}"`).join(', ');
+
+  // Make a copy of values
+  const values = Object.values(payload).map((v, i) => {
+    // If the key is payment_details and it exists, stringify it
+    if (keys[i] === "payment_details" && v != null) {
+      return JSON.stringify(v);
+    }
+    return v;
+  });
+
+  const params = keys.map((_, i) => `$${i + 1}`).join(', ');
+
+  const { rows } = await pool.query(
+    `INSERT INTO company_payments (${cols}) VALUES (${params}) RETURNING *`,
+    values
+  );
+
+  return rows[0];
+}
+
 
   // --- TENANT USERS ---
   async createTenantUsers(tableName, users) {
@@ -243,3 +256,4 @@ export default class SystemAdminModel {
     `);
   }
 }
+
