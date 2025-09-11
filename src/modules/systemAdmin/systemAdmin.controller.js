@@ -125,8 +125,24 @@ return ok(res, updatedCompany);
 
 createPayment: async (req, res, next) => {
   try {
+    // Build payload from body + companyId param
     const payload = { ...req.body, company_id: req.params.companyId };
+
+    // Ensure payment_details is valid JSON or null
+    if (payload.payment_details) {
+      try {
+        payload.payment_details = JSON.stringify(payload.payment_details);
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid payment_details JSON',
+        });
+      }
+    }
+
+    // Call service/model to create payment
     const created = await service.createPayment(payload);
+
     return res.status(201).json({
       success: true,
       data: created,
@@ -136,6 +152,7 @@ createPayment: async (req, res, next) => {
     next(e);
   }
 },
+
 
 getLogs: async (req, res, next) => {
     try {
@@ -164,3 +181,4 @@ updatePayment: async (req, res, next) => {
 },
 
 };
+
