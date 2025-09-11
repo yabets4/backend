@@ -10,6 +10,76 @@ export const tenantQueries = (prefix) => [
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );`,
+`
+CREATE TABLE IF NOT EXISTS ${prefix}_customers (
+    id BIGSERIAL PRIMARY KEY,
+    customer_id VARCHAR(20) UNIQUE NOT NULL,   -- e.g. CUST-0001
+    customer_type VARCHAR(20) NOT NULL CHECK (customer_type IN ('Individual', 'Company')),
+    name VARCHAR(255) NOT NULL,                -- Full name (Individual) OR Company name
+    contact_name VARCHAR(255),                 -- Only if Company
+    contact_phone VARCHAR(50),                 -- Only if Company
+    job_title VARCHAR(100),                    -- Only if Company
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    billing_address TEXT NOT NULL,
+    shipping_address TEXT,                     -- NEW
+    tin_number VARCHAR(50),                    -- Optional TIN number
+    photo_url TEXT,                            -- Optional profile/logo image URL
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+
+
+    -- 2. Auto-generate customer_id
+    CREATE OR REPLACE FUNCTION generate_customer_id()
+    RETURNS TRIGGER AS $$
+    DECLARE
+        last_id VARCHAR(20);
+        last_num INT;
+    BEGIN
+        -- Get the highest customer_id
+        SELECT customer_id INTO last_id
+        FROM ${prefix}_customers
+        ORDER BY id DESC
+        LIMIT 1;
+
+        IF last_id IS NULL THEN
+            last_num := 1;
+        ELSE
+            last_num := CAST(SUBSTRING(last_id FROM 6) AS INT) + 1;
+        END IF;
+
+        NEW.customer_id := 'CUST-' || LPAD(last_num::TEXT, 4, '0');
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE TRIGGER trg_generate_customer_id
+    BEFORE INSERT ON ${prefix}_customers
+    FOR EACH ROW
+    WHEN (NEW.customer_id IS NULL)
+    EXECUTE FUNCTION generate_customer_id();
+
+    -- 3. Validation for company customers
+    CREATE OR REPLACE FUNCTION validate_customer_fields()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        IF NEW.customer_type = 'Company' THEN
+            IF NEW.contact_name IS NULL OR NEW.contact_phone IS NULL OR NEW.job_title IS NULL THEN
+                RAISE EXCEPTION 'Company customers must have contact_name, contact_phone, and job_title.';
+            END IF;
+        END IF;
+        RETURN NEW;
+    END;
+    $$ LANGUAGE plpgsql;
+
+    CREATE TRIGGER trg_validate_customer_fields
+    BEFORE INSERT OR UPDATE ON ${prefix}_customers
+    FOR EACH ROW
+    EXECUTE FUNCTION validate_customer_fields();
+
+    `,
   `
   CREATE TABLE IF NOT EXISTS ${prefix}_users (
       id BIGSERIAL PRIMARY KEY,
@@ -320,76 +390,7 @@ EXECUTE FUNCTION update_order_total();
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
     );
 `,
-    `
-CREATE TABLE IF NOT EXISTS ${prefix}_customers (
-    id BIGSERIAL PRIMARY KEY,
-    customer_id VARCHAR(20) UNIQUE NOT NULL,   -- e.g. CUST-0001
-    customer_type VARCHAR(20) NOT NULL CHECK (customer_type IN ('Individual', 'Company')),
-    name VARCHAR(255) NOT NULL,                -- Full name (Individual) OR Company name
-    contact_name VARCHAR(255),                 -- Only if Company
-    contact_phone VARCHAR(50),                 -- Only if Company
-    job_title VARCHAR(100),                    -- Only if Company
-    email VARCHAR(255),
-    phone VARCHAR(50),
-    billing_address TEXT NOT NULL,
-    shipping_address TEXT,                     -- NEW
-    tin_number VARCHAR(50),                    -- Optional TIN number
-    photo_url TEXT,                            -- Optional profile/logo image URL
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-
-
-    -- 2. Auto-generate customer_id
-    CREATE OR REPLACE FUNCTION generate_customer_id()
-    RETURNS TRIGGER AS $$
-    DECLARE
-        last_id VARCHAR(20);
-        last_num INT;
-    BEGIN
-        -- Get the highest customer_id
-        SELECT customer_id INTO last_id
-        FROM ${prefix}_customers
-        ORDER BY id DESC
-        LIMIT 1;
-
-        IF last_id IS NULL THEN
-            last_num := 1;
-        ELSE
-            last_num := CAST(SUBSTRING(last_id FROM 6) AS INT) + 1;
-        END IF;
-
-        NEW.customer_id := 'CUST-' || LPAD(last_num::TEXT, 4, '0');
-        RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-
-    CREATE TRIGGER trg_generate_customer_id
-    BEFORE INSERT ON ${prefix}_customers
-    FOR EACH ROW
-    WHEN (NEW.customer_id IS NULL)
-    EXECUTE FUNCTION generate_customer_id();
-
-    -- 3. Validation for company customers
-    CREATE OR REPLACE FUNCTION validate_customer_fields()
-    RETURNS TRIGGER AS $$
-    BEGIN
-        IF NEW.customer_type = 'Company' THEN
-            IF NEW.contact_name IS NULL OR NEW.contact_phone IS NULL OR NEW.job_title IS NULL THEN
-                RAISE EXCEPTION 'Company customers must have contact_name, contact_phone, and job_title.';
-            END IF;
-        END IF;
-        RETURN NEW;
-    END;
-    $$ LANGUAGE plpgsql;
-
-    CREATE TRIGGER trg_validate_customer_fields
-    BEFORE INSERT OR UPDATE ON ${prefix}_customers
-    FOR EACH ROW
-    EXECUTE FUNCTION validate_customer_fields();
-
-    `,
+    
     `
     CREATE TABLE IF NOT EXISTS ${prefix}_leads (
     id BIGSERIAL PRIMARY KEY,
