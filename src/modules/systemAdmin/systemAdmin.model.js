@@ -210,34 +210,16 @@ async createLocations(tableName, locations) {
   }
 
   // --- PAYMENTS ---
-async createPayment(payload) {
-  const keys = Object.keys(payload);
-  const cols = keys.map(k => `"${k}"`).join(', ');
-
-  // Map values, stringify payment_details
-  const values = keys.map((k) => {
-    const v = payload[k];
-
-    if (k === 'payment_details' && v != null) {
-      try {
-        return JSON.stringify(v); // ✅ must be string for jsonb
-      } catch (err) {
-        throw new Error('payment_details is not valid JSON');
-      }
-    }
-
-    return v;
-  });
-
-  const params = keys.map((_, i) => `$${i + 1}`).join(', ');
-
-  const { rows } = await pool.query(
-    `INSERT INTO company_payments (${cols}) VALUES (${params}) RETURNING *`,
-    values
-  );
-
-  return rows[0];
-}
+  async createPayment(payload) {
+    const keys = Object.keys(payload);
+    const cols = keys.map(k => `"${k}"`).join(', ');
+    const params = keys.map((_, i) => `$${i + 1}`).join(', ');
+    const { rows } = await pool.query(
+      `INSERT INTO payments (${cols}) VALUES (${params}) RETURNING *`,
+      Object.values(payload)
+    );
+    return rows[0];
+  }
 
 
   // --- TENANT USERS ---
