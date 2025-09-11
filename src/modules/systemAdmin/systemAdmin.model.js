@@ -215,7 +215,7 @@ async createLocations(tableName, locations) {
     const cols = keys.map(k => `"${k}"`).join(', ');
     const params = keys.map((_, i) => `$${i + 1}`).join(', ');
     const { rows } = await pool.query(
-      `INSERT INTO payments (${cols}) VALUES (${params}) RETURNING *`,
+      `INSERT INTO company_payments (${cols}) VALUES (${params}) RETURNING *`,
       Object.values(payload)
     );
     return rows[0];
@@ -250,4 +250,5 @@ async createLocations(tableName, locations) {
   }
 
 }
+
 
