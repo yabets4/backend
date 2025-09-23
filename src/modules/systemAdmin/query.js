@@ -39,25 +39,74 @@ export const tenantQueries = (prefix) => [
   FOR EACH ROW
   EXECUTE FUNCTION generate_user_id();
   `,
+  //Leads and Attachments
 
+  `
+  CREATE SEQUENCE IF NOT EXISTS lead_id_seq START 1;
+
+  
+  CREATE TABLE IF NOT EXISTS ${prefix}_leads (
+    id BIGSERIAL PRIMARY KEY,
+    lead_id VARCHAR(20) UNIQUE NOT NULL DEFAULT ('LEAD-' || LPAD(nextval('lead_id_seq')::text, 4, '0')),
+
+    -- Lead Type
+    lead_type VARCHAR(20) NOT NULL CHECK (lead_type IN ('Individual', 'Company')),
+
+    -- Shared fields
+    name VARCHAR(255) NOT NULL,               -- Individual Name OR Company Name
+    primary_phone VARCHAR(50) NOT NULL,
+    email VARCHAR(255),                       -- For company: general company email
+    address TEXT,
+
+    -- Company-specific fields (nullable for Individual leads)
+    contact_person_name VARCHAR(255),
+    contact_person_email VARCHAR(255),
+    contact_person_job VARCHAR(255),
+
+    -- Lead Assignment & Source
+    assigned_to VARCHAR(100) NOT NULL,        -- could be user_id later (FK to users table)
+    lead_source VARCHAR(100) NOT NULL,
+    referred_by VARCHAR(100),                 -- optional
+
+    -- Status & Priority
+    status VARCHAR(50) NOT NULL DEFAULT 'New',    -- e.g. New, Contacted, Qualified, Lost, Converted
+    priority VARCHAR(20) NOT NULL DEFAULT 'Medium', -- Low, Medium, High
+
+    -- Service & Notes
+    service_requested VARCHAR(255) NOT NULL,
+    notes TEXT,
+
+    -- Audit
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Attachments tied to lead_id instead of numeric id
+CREATE TABLE IF NOT EXISTS ${prefix}_lead_attachments (
+    id BIGSERIAL PRIMARY KEY,
+    lead_id VARCHAR(20) NOT NULL REFERENCES ${prefix}_leads(lead_id) ON DELETE CASCADE,
+    file_url TEXT NOT NULL,          -- path or URL to file
+    description TEXT,                -- user-provided description
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+`
+,
   // 3. Customers (no dependencies)
   `
-CREATE TABLE IF NOT EXISTS ${prefix}_customers (
+CREATE TABLE IF NOT EXISTS customers ( 
     id BIGSERIAL PRIMARY KEY,
-    customer_id VARCHAR(20) UNIQUE NOT NULL,
-    customer_type VARCHAR(20) NOT NULL CHECK (customer_type IN ('Individual', 'Company')),
-    name VARCHAR(255) NOT NULL,
-    contact_name VARCHAR(255),
-    contact_phone VARCHAR(50),
-    job_title VARCHAR(100),
-    email VARCHAR(255),
-    phone VARCHAR(50),
-    billing_address TEXT NOT NULL,
-    shipping_address TEXT,
-    tin_number VARCHAR(50),
-    photo_url TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    company_name VARCHAR(50) NOT NULL,
+    customer_id VARCHAR(20) UNIQUE NOT NULL, 
+    customer_type VARCHAR(20) NOT NULL CHECK (customer_type IN ('Individual', 'Company')), 
+    name VARCHAR(255) NOT NULL, contact_name VARCHAR(255), 
+    contact_phone VARCHAR(50), job_title VARCHAR(100), 
+    email VARCHAR(255), phone VARCHAR(50), 
+    billing_address TEXT NOT NULL, 
+    shipping_address TEXT, 
+    tin_number VARCHAR(50), 
+    photo_url TEXT, 
+    created_at TIMESTAMP DEFAULT NOW(), 
+    updated_at TIMESTAMP DEFAULT NOW() 
 );
 
 CREATE OR REPLACE FUNCTION generate_customer_id()
@@ -363,33 +412,6 @@ CREATE TABLE IF NOT EXISTS ${prefix}_material_movements (
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 `,
-
-  // 9. Leads (depends on users for assignment, optional)
-  `
-CREATE TABLE IF NOT EXISTS ${prefix}_leads (
-    id BIGSERIAL PRIMARY KEY,
-    lead_id VARCHAR(20) UNIQUE NOT NULL,
-    lead_type VARCHAR(20) NOT NULL CHECK (lead_type IN ('Individual', 'Company')),
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    contact_person_name VARCHAR(150),
-    contact_person_email VARCHAR(255),
-    contact_person_job_title VARCHAR(100),
-    phone VARCHAR(20) NOT NULL,
-    address TEXT,
-    assigned_to VARCHAR(100),
-    lead_source VARCHAR(100),
-    referred_by VARCHAR(150),
-    status VARCHAR(50),
-    priority VARCHAR(20),
-    service_requested VARCHAR(255),
-    notes TEXT,
-    attachments TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-`,
-
   // 10. Roles & RBAC (depends on users)
   `
 CREATE TABLE IF NOT EXISTS ${prefix}_roles (
@@ -405,4 +427,3 @@ CREATE TABLE IF NOT EXISTS ${prefix}_rbac (
 );
 `
 ];
-

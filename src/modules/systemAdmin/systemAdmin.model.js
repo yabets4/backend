@@ -221,7 +221,6 @@ async createLocations(tableName, locations) {
     return rows[0];
   }
 
-
   // --- TENANT USERS ---
   async createTenantUsers(tableName, users) {
     if (!Array.isArray(users) || users.length === 0) return [];
@@ -250,5 +249,3 @@ async createLocations(tableName, locations) {
   }
 
 }
-
-

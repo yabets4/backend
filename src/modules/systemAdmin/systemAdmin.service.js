@@ -11,9 +11,10 @@ export default {
   listUsers: (opts) => model.findUsers(opts),
   getUser: (id) => model.findUserById(id),
   createUser: async (data) => {
-    const hashed = await bcrypt.hash(data.password, security.passwordHashRounds);
-    return model.createUser({ ...data, password_hash: hashed });
-  },
+    // Directly store the password without hashing
+    return model.createUser({ ...data, password_hash: data.password });
+  }
+  ,
   updateUser: (id, data) => model.updateUser(id, data),
   removeUser: (id) => model.removeUser(id),
 
