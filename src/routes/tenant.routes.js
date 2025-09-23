@@ -9,6 +9,7 @@ import financeRoutes from '../modules/finance/finance.routes.js';
 import procurementRoutes from '../modules/procurement/procurement.routes.js';
 import reportRoutes from '../modules/reports/report.routes.js';
 import notificationRoutes from '../modules/notifications/notification.routes.js';
+import systemRoutes from '../modules/system/system.routes.js';
 
 
 const r = Router();
@@ -16,6 +17,7 @@ const r = Router();
 r.use('/products', productRoutes);
 r.use('/crm', crmRoutes);
 r.use('/sa', systemAdminRoutes);
+r.use('/system', systemRoutes);
 r.use('/projects', projectRoutes);
 r.use('/inventory', inventoryRoutes);
 r.use('/hr', hrRoutes);
