@@ -126,4 +126,40 @@ r.post('/login', async (req, res) => {
   }
 });
 
+r.post('/auth/login-as/:company_id', async (req, res) => {
+  const { company_id } = req.params;
+  const { gps } = req.body || {};
+
+  if (!gps) return badRequest(res, 'GPS required');
+
+  try {
+    // Generate JWT scoped to the target tenant company
+    const token = jwt.sign(
+      {
+        sub: 'super-001',            // super admin user_id
+        roles: ['owner'],             // can adjust role if needed
+        company_id: company_id,       // tenant being impersonated
+        gps,
+        is_system_admin: true,        // backend will allow all-company access
+        impersonator: 'super-001'
+      },
+      appConfig.jwtSecret,
+      { expiresIn: '12h' }
+    );
+
+    // Save session for auditing
+    await pool.query(
+      `INSERT INTO login_sessions (email, role, gps_lat, gps_lon )
+       VALUES ($1, $2, $3, $4)`,
+      ['superadmin@example.com', 'owner', gps.lat, gps.lon]
+    );
+
+    return ok(res, { token, tenant: company_id });
+  } catch (err) {
+    console.error('Login-as error:', err);
+    return badRequest(res, 'Failed to login as tenant');
+  }
+});
+
+
 export default r;
