@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS ${prefix}_lead_attachments (
   `
 CREATE TABLE IF NOT EXISTS customers ( 
     id BIGSERIAL PRIMARY KEY,
-    company_name VARCHAR(50) NOT NULL,
+    company_id VARCHAR(50) NOT NULL,
     customer_id VARCHAR(20) UNIQUE NOT NULL, 
     customer_type VARCHAR(20) NOT NULL CHECK (customer_type IN ('Individual', 'Company')), 
     name VARCHAR(255) NOT NULL, contact_name VARCHAR(255), 

@@ -3,20 +3,51 @@ import pool from '../../../loaders/db.loader.js';
 export default class CompanyModel {
   // CREATE
   static async createCompany(data) {
-    const query = `
-      INSERT INTO company_profiles
-      (company_name, legal_name, registration_number, physical_address, default_currency,
-       industry, business_model, pricing_tier, company_logo, tin_document, business_license, trade_license)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
-      RETURNING *;
-    `;
-    const values = [
-      data.company_name, data.legal_name, data.registration_number, data.physical_address, data.default_currency,
-      data.industry, data.business_model, data.pricing_tier, data.company_logo, data.tin_document, data.business_license, data.trade_license
-    ];
-    const result = await pool.query(query, values);
-    return result.rows[0];
-  }
+  const seqRes = await pool.query("SELECT nextval('company_id_seq') as next_id");
+  const nextIdNumber = seqRes.rows[0].next_id;
+  const company_id = `comp-${String(nextIdNumber).padStart(3, '0')}`;
+
+  // 2. Insert into companies table
+  const companyQuery = `
+    INSERT INTO companies (company_id, company_name)
+    VALUES ($1, $2)
+    RETURNING *;
+  `;
+  const companyRes = await pool.query(companyQuery, [company_id, data.company_name]);
+
+  // 3. Insert initial profile snapshot
+  const profileQuery = `
+    INSERT INTO company_profiles
+    (company_id, company_name, legal_name, registration_number, physical_address,
+     default_currency, industry, business_model, pricing_tier, company_logo,
+     tin_document, business_license, trade_license, status)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+    RETURNING *;
+  `;
+  const profileValues = [
+    company_id,
+    data.company_name,
+    data.legal_name,
+    data.registration_number,
+    data.physical_address,
+    data.default_currency,
+    data.industry,
+    data.business_model,
+    data.pricing_tier,
+    data.company_logo,
+    data.tin_document,
+    data.business_license,
+    data.trade_license,
+    data.status || 'Trial'
+  ];
+  const profileRes = await pool.query(profileQuery, profileValues);
+
+  return {
+    ...companyRes.rows[0],
+    latest_profile: profileRes.rows[0]
+  };
+}
+
 
   // READ ALL
   static async fetchAllCompanies() {
@@ -62,17 +93,59 @@ export default class CompanyModel {
 
 
   static async createUser(data) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
     const { company_id, name, email, phone, password, role } = data;
-    const query = `
-      INSERT INTO users
-      (company_id, name, email, phone, password, role)
+
+    // Step 1: Get next user number and increment it
+    const nextNumQuery = `
+      UPDATE companies
+      SET next_user_number = next_user_number + 1
+      WHERE company_id = $1
+      RETURNING next_user_number;
+    `;
+    const numRes = await client.query(nextNumQuery, [company_id]);
+    const nextNum = numRes.rows[0].next_user_number;
+
+    const user_id = `USR-${String(nextNum).padStart(2, '0')}`;
+
+    // Step 2: Insert into users table
+    const userInsert = `
+      INSERT INTO users (company_id, user_id)
+      VALUES ($1,$2)
+      RETURNING id, company_id, user_id;
+    `;
+    const userRes = await client.query(userInsert, [company_id, user_id]);
+    const user = userRes.rows[0];
+
+    // Step 3: Insert into user_profiles table
+    const profileInsert = `
+      INSERT INTO user_profiles
+      (user_pk, name, email, phone, password, role)
       VALUES ($1,$2,$3,$4,$5,$6)
       RETURNING *;
     `;
-    const values = [company_id, name, email, phone, password, role];
-    const result = await pool.query(query, values);
-    return result.rows[0];
+    const profileRes = await client.query(profileInsert, [
+      user.id, name, email, phone, password, role
+    ]);
+
+    await client.query('COMMIT');
+
+    return {
+      ...user,
+      latest_profile: profileRes.rows[0],
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
+}
+
+
 
   static async createPayment(data) {
     const { company_id, billing_contact_name, billing_email, billing_address, payment_method, payment_details } = data;
