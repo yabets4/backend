@@ -99,7 +99,7 @@ export default class CompanyModel {
 
     const { company_id, name, email, phone, password, role } = data;
 
-    // Step 1: Get next user number and increment it
+    // Step 1: Get next user number
     const nextNumQuery = `
       UPDATE companies
       SET next_user_number = next_user_number + 1
@@ -111,24 +111,29 @@ export default class CompanyModel {
 
     const user_id = `USR-${String(nextNum).padStart(2, '0')}`;
 
-    // Step 2: Insert into users table
+    // Step 2: Insert into users
     const userInsert = `
       INSERT INTO users (company_id, user_id)
-      VALUES ($1,$2)
+      VALUES ($1, $2)
       RETURNING id, company_id, user_id;
     `;
     const userRes = await client.query(userInsert, [company_id, user_id]);
     const user = userRes.rows[0];
 
-    // Step 3: Insert into user_profiles table
+    // Step 3: Insert into user_profiles using user_id
     const profileInsert = `
       INSERT INTO user_profiles
       (user_pk, name, email, phone, password, role)
-      VALUES ($1,$2,$3,$4,$5,$6)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *;
     `;
     const profileRes = await client.query(profileInsert, [
-      user.id, name, email, phone, password, role
+      user.user_id, // <-- FIXED
+      name,
+      email,
+      phone,
+      password,
+      role
     ]);
 
     await client.query('COMMIT');
@@ -144,6 +149,7 @@ export default class CompanyModel {
     client.release();
   }
 }
+
 
 
 
@@ -176,3 +182,4 @@ export default class CompanyModel {
     return results;
   }
 }
+
