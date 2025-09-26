@@ -1,75 +1,78 @@
-import CustomerService from './customer.service.js';
-import { ok, notFound } from '../../../utils/apiResponse.js';
+import { CustomersService } from "./customer.service.js";
+import { ok, badRequest, notFound } from "../../../utils/apiResponse.js";
 
-const service = new CustomerService();
-
-export default class CustomerController {
-  // GET /customers
-  static async getAll(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
-      const customers = await service.getAllCustomers(prefix, req.query);
-      return ok(res, customers);
-    } catch (e) {
-      next(e);
-    }
+// GET all customers
+export async function getCustomers(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const customers = await CustomersService.list(companyID);
+    return ok(res, customers);
+  } catch (err) {
+    return badRequest(res, err.message);
   }
+}
 
-  // GET /customer/:id
-  static async getById(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
-      const customer = await service.getCustomerById(prefix, req.params.id);
-      if (!customer) return notFound(res, 'Customer not found');
-      return ok(res, customer);
-    } catch (e) {
-      next(e);
-    }
+// GET single customer by customer_id (CUS-XX)
+export async function getCustomer(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const { id: customerId } = req.params; // rename for clarity
+    const customer = await CustomersService.get(companyID, customerId);
+    if (!customer) return notFound(res, "Customer not found");
+    return ok(res, customer);
+  } catch (err) {
+    return badRequest(res, err.message);
   }
+}
 
-  // POST /customer (with photo upload)
-  static async create(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
+// CREATE new customer
+export async function createCustomer(req, res) {
+  try {
+    const { companyID } = req.auth;
 
-      // If file uploaded, store path relative to /uploads
-      if (req.file) {
-        req.body.photo_url = `/uploads/${prefix}/customers/${req.file.filename}`;
-      }
+    let customerData = { ...req.body };
 
-      const customer = await service.createCustomer(prefix, req.body);
-      return ok(res, customer);
-    } catch (e) {
-      next(e);
+    if (req.file) {
+      const filePath = req.file.path.replace(/\\/g, "/");
+      customerData.photo_url = `/uploads/${companyID}/customers/${req.file.filename}`;
     }
+
+    const newCustomer = await CustomersService.create(companyID, customerData);
+    return ok(res, newCustomer);
+  } catch (err) {
+    return badRequest(res, err.message);
   }
+}
 
-  // PUT /customer/:id (with optional new photo upload)
-  static async update(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
+// UPDATE customer by customer_id
+export async function updateCustomer(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const { id: customerId } = req.params;
 
-      if (req.file) {
-        req.body.photo_url = `/uploads/${prefix}/customers/${req.file.filename}`;
-      }
+    let customerData = { ...req.body };
 
-      const customer = await service.updateCustomer(prefix, req.params.id, req.body);
-      if (!customer) return notFound(res, 'Customer not found');
-      return ok(res, customer);
-    } catch (e) {
-      next(e);
+    if (req.file) {
+      customerData.photo_url = `/uploads/${companyID}/customers/${req.file.filename}`;
     }
+
+    const updated = await CustomersService.update(companyID, customerId, customerData);
+    if (!updated) return notFound(res, "Customer not found");
+    return ok(res, updated);
+  } catch (err) {
+    return badRequest(res, err.message);
   }
+}
 
-  // DELETE /customer/:id
-  static async delete(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
-      const deleted = await service.deleteCustomer(prefix, req.params.id);
-      if (!deleted) return notFound(res, 'Customer not found');
-      return ok(res, { success: true });
-    } catch (e) {
-      next(e);
-    }
+// DELETE customer by customer_id
+export async function deleteCustomer(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const { id: customerId } = req.params;
+    const deleted = await CustomersService.delete(companyID, customerId);
+    if (!deleted) return notFound(res, "Customer not found");
+    return ok(res, { message: "Customer deleted" });
+  } catch (err) {
+    return badRequest(res, err.message);
   }
 }

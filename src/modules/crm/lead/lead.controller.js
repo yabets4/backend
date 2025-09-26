@@ -1,75 +1,97 @@
-import LeadService from './lead.service.js';
-import { ok, notFound } from '../../../utils/apiResponse.js';
+import { LeadsService } from "./lead.service.js";
+import { ok, badRequest, notFound } from "../../../utils/apiResponse.js";
 
-const service = new LeadService();
-
-export default class LeadController {
-  // GET /leads
-  static async getAll(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
-      const leads = await service.getAllLeads(prefix, req.query);
-      return ok(res, leads);
-    } catch (e) {
-      next(e);
-    }
+// GET all leads
+export async function getLeads(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const leads = await LeadsService.list(companyID);
+    return ok(res, leads);
+  } catch (err) {
+    return badRequest(res, err.message);
   }
+}
 
-  // GET /lead/:id
-  static async getById(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
-      const lead = await service.getLeadById(prefix, req.params.id);
-      if (!lead) return notFound(res, 'Lead not found');
-      return ok(res, lead);
-    } catch (e) {
-      next(e);
-    }
+// GET single lead by lead_id (LEAD-XX)
+export async function getLead(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const { id: leadId } = req.params;
+    const lead = await LeadsService.get(companyID, leadId);
+    if (!lead) return notFound(res, "Lead not found");
+    return ok(res, lead);
+  } catch (err) {
+    return badRequest(res, err.message);
   }
+}
 
-  // POST /lead
-  static async create(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
-      const lead = await service.createLead(prefix, req.body);
-      return ok(res, lead);
-    } catch (e) {
-      next(e);
-    }
-  }
+// CREATE new lead
+export async function createLead(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const leadData = { ...req.body };
 
-  // PUT /lead/:id
-  static async update(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
-      const lead = await service.updateLead(prefix, req.params.id, req.body);
-      if (!lead) return notFound(res, 'Lead not found');
-      return ok(res, lead);
-    } catch (e) {
-      next(e);
+    // Handle uploaded files
+    if (req.files && req.files.length > 0) {
+      leadData.attachments = req.files.map(f => ({
+        file_url: `/uploads/${req.tenantPrefix || "default"}/leads/${f.filename}`,
+        description: f.originalname
+      }));
     }
-  }
 
-  // DELETE /lead/:id
-  static async delete(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
-      const deleted = await service.deleteLead(prefix, req.params.id);
-      if (!deleted) return notFound(res, 'Lead not found');
-      return ok(res, { message: 'Lead deleted successfully' });
-    } catch (e) {
-      next(e);
-    }
+    const newLead = await LeadsService.create(companyID, leadData, leadData.attachments);
+    return ok(res, newLead);
+  } catch (err) {
+    return badRequest(res, err.message);
   }
-    // POST /lead/:id/export
-  static async exportToCustomer(req, res, next) {
-    try {
-      const prefix = req.tenantPrefix;
-      const customer = await service.exportLeadToCustomer(prefix, req.params.id);
-      return ok(res, { message: 'Lead exported successfully', customer });
-    } catch (e) {
-      next(e);
-    }
-  }
+}
 
+// UPDATE lead by lead_id
+export async function updateLead(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const { id: leadId } = req.params;
+
+    // Lead fields from body
+    const leadData = { ...req.body };
+
+    // Parse existing attachments JSON
+    let existingAttachments = [];
+    if (leadData.existing_attachments) {
+      if (typeof leadData.existing_attachments === "string") {
+        // single attachment sent as string
+        existingAttachments = [JSON.parse(leadData.existing_attachments)];
+      } else {
+        existingAttachments = leadData.existing_attachments.map(att => JSON.parse(att));
+      }
+    }
+
+    // New uploaded files
+    const newAttachments = (req.files || []).map(f => ({
+      file_url: `/uploads/${req.tenantPrefix || "default"}/leads/${f.filename}`,
+      description: f.originalname,
+    }));
+
+    // Pass both to the service
+    const updated = await LeadsService.update(companyID, leadId, leadData, newAttachments, existingAttachments);
+
+    if (!updated) return notFound(res, "Lead not found");
+    return ok(res, updated);
+  } catch (err) {
+    return badRequest(res, err.message);
+  }
+}
+
+
+// DELETE lead by lead_id
+export async function deleteLead(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const { id: leadId } = req.params;
+    const deleted = await LeadsService.delete(companyID, leadId);
+    if (!deleted) return notFound(res, "Lead not found");
+    return ok(res, { message: "Lead deleted" });
+  } catch (err) {
+    return badRequest(res, err.message);
+  }
 }

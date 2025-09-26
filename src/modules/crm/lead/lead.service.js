@@ -1,75 +1,70 @@
-import LeadModel from './lead.model.js';
-import pool from '../../../loaders/db.loader.js';
-import { tableName } from '../../../utils/prefix.utils.js';
+import { LeadsModel } from "./lead.model.js";
 
-export default class LeadService {
-  constructor() {
-    this.model = new LeadModel();
-  }
+export const LeadsService = {
+  // List all leads with attachments
+  async list(companyId) {
+    console.log("[Service] Listing leads for company:", companyId);
+    return await LeadsModel.findAll(companyId);
+  },
 
-  async getAllLeads(prefix, options) {
-    return await this.model.findAll(prefix, options);
-  }
+  // Get a single lead with attachments
+  async get(companyId, leadId) {
+    console.log("[Service] Fetching lead:", leadId, "for company:", companyId);
+    return await LeadsModel.findById(companyId, leadId);
+  },
 
-  async getLeadById(prefix, leadId) {
-    return await this.model.findById(prefix, leadId);
-  }
+  // Create a lead + optional attachments
+  async create(companyId, data, attachments = []) {
+    console.log("[Service] Creating lead for company:", companyId);
+    console.log("[Service] Input data:", data);
 
-  async createLead(prefix, data) {
-    return await this.model.create(prefix, data);
-  }
+    // Required fields
+    const requiredFields = ["lead_type", "name", "primary_phone", "lead_source", "service_requested"];
+    const missingFields = requiredFields.filter(f => !data[f]);
+    if (missingFields.length) {
+      throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
+    }
 
-  async updateLead(prefix, leadId, data) {
-    return await this.model.update(prefix, leadId, data);
-  }
-
-  async deleteLead(prefix, leadId) {
-    return await this.model.delete(prefix, leadId);
-  }
-
-  async exportLeadToCustomer(prefix, leadId) {
-    const client = await pool.connect();
     try {
-      await client.query('BEGIN');
-
-      const lead = await this.model.findById(prefix, leadId);
-      if (!lead) throw new Error('Lead not found');
-
-      const customersTable = tableName('customers', prefix);
-
-      // Map lead fields → customer fields
-      let customerName = lead.lead_type === 'Company'
-        ? lead.contact_person_name || lead.first_name + ' ' + (lead.last_name || '')
-        : lead.first_name + ' ' + (lead.last_name || '');
-
-      const { rows } = await client.query(
-        `INSERT INTO ${customersTable}
-        (customer_id, customer_type, name, contact_name, phone, address, tin_number, created_at, updated_at)
-        VALUES (
-          concat('CUST-', lpad(nextval(pg_get_serial_sequence('${customersTable}','id'))::text, 4, '0')),
-          $1, $2, $3, $4, $5, $6, NOW(), NOW()
-        )
-        RETURNING *`,
-        [
-          lead.lead_type,
-          customerName,
-          lead.contact_person_name || null,
-          lead.phone,
-          lead.address,
-          null // tin_number optional, maybe from lead.notes or custom field
-        ]
-      );
-
-      // Optionally update lead status
-      await this.model.update(prefix, leadId, { status: 'Converted' });
-
-      await client.query('COMMIT');
-      return rows[0];
+      const newLead = await LeadsModel.insert(companyId, data, attachments);
+      console.log("[Service] Lead created successfully:", newLead.lead_id);
+      return newLead;
     } catch (err) {
-      await client.query('ROLLBACK');
+      console.error("[Service] Error creating lead:", err);
       throw err;
-    } finally {
-      client.release();
+    }
+  },
+
+  // Update a lead + add new attachments
+  async update(companyId, leadId, data, newAttachments = [], existingAttachments = []) {
+  console.log("[Service] Updating lead:", leadId, "for company:", companyId);
+
+  if (!data || Object.keys(data).length === 0) {
+    return null;
+  }
+
+  try {
+    const updatedLead = await LeadsModel.update(companyId, leadId, data, newAttachments, existingAttachments);
+    console.log("[Service] Lead updated successfully:", leadId);
+    return updatedLead;
+  } catch (err) {
+    console.error("[Service] Error updating lead:", err);
+    throw err;
+  }
+},
+
+
+  // Delete lead (attachments cascade automatically)
+  async delete(companyId, leadId) {
+    console.log("[Service] Deleting lead:", leadId, "for company:", companyId);
+
+    try {
+      const deleted = await LeadsModel.remove(companyId, leadId);
+      console.log("[Service] Lead deleted successfully:", leadId);
+      return deleted;
+    } catch (err) {
+      console.error("[Service] Error deleting lead:", err);
+      throw err;
     }
   }
-}
+};
