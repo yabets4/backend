@@ -4,6 +4,8 @@ export default class LocationsModel {
   constructor() {}
 
   async createLocation(companyId, locationData) {
+    console.log(locationData);
+    
     const { name, address, contact, operational_hours } = locationData;
     const res = await pool.query(
       `

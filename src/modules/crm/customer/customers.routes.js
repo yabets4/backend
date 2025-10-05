@@ -8,13 +8,14 @@ import {
   deleteCustomer,
 } from "./customer.controller.js";
 import { uploadCustomerPhoto } from "../../../middleware/multer.middleware.js";
+import {CheckTierLimit} from "../../../middleware/checkTierLimit.middleware.js";
 
 const r = Router();
 
 r.get("/", getCustomers);
 r.get("/:id", getCustomer);
 
-r.post("/", uploadCustomerPhoto.single("photo"), createCustomer);
+r.post("/", CheckTierLimit('customers'), uploadCustomerPhoto.single("photo"), createCustomer);
 r.put("/:id", uploadCustomerPhoto.single("photo"), updateCustomer);
 
 r.delete("/:id", deleteCustomer);

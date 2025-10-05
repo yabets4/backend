@@ -1,103 +1,207 @@
-import pool from '../../../loaders/db.loader.js';
-import { tableName } from '../../../utils/prefix.utils.js';
+import pool from "../../../loaders/db.loader.js";
 
-export default class OrderModel {
-  // --- Orders ---
-  async findAll(prefix, { limit = 50, offset = 0 } = {}) {
-    const { rows } = await pool.query(
-      `SELECT * FROM ${tableName('orders', prefix)} ORDER BY id ASC LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
-    return rows;
-  }
+export const OrderModel = {
+  async getLeadsWithQuotes(companyId) {
+    try {
+      // 1. Fetch all leads
+      const leadsQuery = `
+        SELECT 
+          lead_id,
+          name,
+          address,
+          email,
+          primary_phone as phone
+        FROM leads
+        WHERE company_id = $1
+        ORDER BY name ASC
+      `;
+      const { rows: leads } = await pool.query(leadsQuery, [companyId]);
 
-  async findById(prefix, orderId) {
-    const orderTable = tableName('orders', prefix);
-    const itemTable = tableName('order_items', prefix);
+      // 2. Fetch all relevant quotes for the company
+      const quotesQuery = `
+        SELECT * 
+        FROM quotes 
+        WHERE company_id = $1 AND lead_id IS NOT NULL AND status = 'Accepted' 
+        ORDER BY created_at DESC
+      `;
+      const { rows: quotes } = await pool.query(quotesQuery, [companyId]);
 
-    const { rows: orderRows } = await pool.query(
-      `SELECT * FROM ${orderTable} WHERE order_id = $1`,
-      [orderId]
-    );
-    if (!orderRows.length) return null;
+      // 3. Fetch all quote items for the company
+      const quoteItemsQuery = `
+        SELECT * 
+        FROM quote_items 
+        WHERE company_id = $1
+      `;
+      const { rows: quoteItems } = await pool.query(quoteItemsQuery, [companyId]);
 
-    const order = orderRows[0];
+      // 4. Create a map of items by quote_id
+      const itemsByQuote = quoteItems.reduce((acc, item) => {
+        if (!acc[item.quote_id]) {
+          acc[item.quote_id] = [];
+        }
+        acc[item.quote_id].push(item);
+        return acc;
+      }, {});
 
-    const { rows: items } = await pool.query(
-      `SELECT * FROM ${itemTable} WHERE order_id = $1`,
-      [orderId]
-    );
+      // 5. Create a map of quotes (with their items) by lead_id
+      const quotesByLead = quotes.reduce((acc, quote) => {
+        if (!acc[quote.lead_id]) {
+          acc[quote.lead_id] = [];
+        }
+        // Attach items to the quote
+        quote.items = itemsByQuote[quote.quote_id] || [];
+        acc[quote.lead_id].push(quote);
+        return acc;
+      }, {});
 
-    return { ...order, items };
-  }
+      // 6. Combine leads with their quotes
+      return leads.map(lead => ({
+        ...lead,
+        quotes: quotesByLead[lead.lead_id] || []
+      }));
+    } catch (error) {
+      console.error('Error fetching leads with quotes:', error);
+      throw new Error('Could not fetch leads with quotes');
+    }
+  },
 
-  async create(prefix, data) {
-    const orderTable = tableName('orders', prefix);
-    const itemTable = tableName('order_items', prefix);
-
+  /**
+   * Creates a new sales order and its associated items in a transaction.
+   * @param {string} companyId - The ID of the company.
+   * @param {object} data - The order data.
+   * @returns {Promise<object>} The newly created order with its items.
+   */
+  async create(companyId, data) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      const {
-        customer_id,
-        billing_address,
-        shipping_address,
-        notes,
-        items
-      } = data;
-
-      // Insert order
-      const { rows } = await client.query(
-        `INSERT INTO ${orderTable} (customer_id, billing_address, shipping_address, notes)
-         VALUES ($1,$2,$3,$4)
-         RETURNING *`,
-        [customer_id, billing_address, shipping_address, notes || null]
+      // 1. Get and increment the next order number
+      const { rows: companyRows } = await client.query(
+        `UPDATE companies SET next_order_number = next_order_number + 1 WHERE company_id = $1 RETURNING next_order_number`,
+        [companyId]
       );
+      const orderNumber = companyRows[0].next_order_number;
+      const order_id = `ORD-${String(orderNumber).padStart(3, '0')}`;
 
-      const order = rows[0];
-      const orderId = order.order_id;
+      // 2. Create the main order record
+      const orderQuery = `
+        INSERT INTO orders (company_id, order_id, quote_id, lead_id, status, order_date, delivery_date, total_amount)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *;
+      `;
+      const orderValues = [
+        companyId, order_id, data.quote_id, data.lead_id, data.status || 'Pending',
+        data.orderDate, data.delivery_date || null, data.totalAmount || 0
+      ];
+      const { rows: orderRows } = await client.query(orderQuery, orderValues);
+      const newOrder = orderRows[0];
 
-      // Insert order items
-      if (items?.length) {
-        for (const item of items) {
-          await client.query(
-            `INSERT INTO ${itemTable} (order_id, product_id, quantity, unit_price)
-             VALUES ($1,$2,$3,$4)`,
-            [orderId, item.product_id, item.quantity, item.unit_price]
-          );
+      // 3. Create the order items
+      const createdItems = [];
+      if (data.orderItems && data.orderItems.length > 0) {
+        for (const item of data.orderItems) {
+          const itemQuery = `
+            INSERT INTO order_items (company_id, order_id, quote_id, product_name, quantity, unit_price, description)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *;
+          `;
+          const itemValues = [
+            companyId, order_id, data.quote_id, item.name, item.quantity, item.unit_price, item.description || null
+          ];
+          const { rows: itemRows } = await client.query(itemQuery, itemValues);
+          createdItems.push(itemRows[0]);
         }
       }
 
       await client.query('COMMIT');
-
-      return await this.findById(prefix, orderId);
-    } catch (e) {
+      newOrder.items = createdItems;
+      return newOrder;
+    } catch (error) {
       await client.query('ROLLBACK');
-      throw e;
+      console.error('Error creating order:', error);
+      throw new Error('Could not create order');
     } finally {
       client.release();
     }
-  }
+  },
 
-  async updateStatus(prefix, orderId, status) {
-    const orderTable = tableName('orders', prefix);
+  /**
+   * Fetches all orders for a company.
+   * @param {string} companyId - The ID of the company.
+   * @returns {Promise<Array>} A list of all orders.
+   */
+  async findAll(companyId) {
+    const query = `
+      SELECT o.*, l.name as customer_name
+      FROM orders o
+      LEFT JOIN leads l ON o.company_id = l.company_id AND o.lead_id = l.lead_id
+      WHERE o.company_id = $1 ORDER BY o.created_at DESC
+    `;
+    const { rows } = await pool.query(query, [companyId]);
+    return rows;
+  },
+
+  /**
+   * Fetches a single order by its ID, including its items.
+   * @param {string} companyId - The ID of the company.
+   * @param {string} orderId - The ID of the order.
+   * @returns {Promise<object|null>} The order object or null if not found.
+   */
+  async findById(companyId, orderId) {
+    const query = `
+      SELECT o.*, l.name as customer_name
+      FROM orders o
+      LEFT JOIN leads l ON o.company_id = l.company_id AND o.lead_id = l.lead_id
+      WHERE o.company_id = $1 AND o.order_id = $2`;
+    const { rows: orderRows } = await pool.query(query, [companyId, orderId]);
+    if (orderRows.length === 0) {
+      return null;
+    }
+    const order = orderRows[0];
+
+    const { rows: itemRows } = await pool.query('SELECT * FROM order_items WHERE company_id = $1 AND order_id = $2 ORDER BY id', [companyId, orderId]);
+    order.items = itemRows;
+
+    return order;
+  },
+
+  /**
+   * Updates an order. For simplicity, this example only updates the status.
+   * A full implementation would handle updating items as well.
+   * @param {string} companyId - The ID of the company.
+   * @param {string} orderId - The ID of the order to update.
+   * @param {object} data - The data to update.
+   * @returns {Promise<object|null>} The updated order object or null if not found.
+   */
+  async update(companyId, orderId, data) {
+    // This is a simplified update. A full implementation might involve a transaction
+    // to update items, similar to the create method.
+    const { status, delivery_date, total_amount } = data;
     const { rows } = await pool.query(
-      `UPDATE ${orderTable}
-       SET status = $1
-       WHERE order_id = $2
+      `UPDATE orders SET 
+         status = COALESCE($3, status), 
+         delivery_date = COALESCE($4, delivery_date),
+         total_amount = COALESCE($5, total_amount),
+         updated_at = NOW()
+       WHERE company_id = $1 AND order_id = $2
        RETURNING *`,
-      [status, orderId]
+      [companyId, orderId, status, delivery_date, total_amount]
     );
-    return rows[0] || null;
-  }
+    return rows.length > 0 ? rows[0] : null;
+  },
 
-  async delete(prefix, orderId) {
-    const orderTable = tableName('orders', prefix);
+  /**
+   * Deletes an order. The `ON DELETE CASCADE` in the schema handles deleting items.
+   * @param {string} companyId - The ID of the company.
+   * @param {string} orderId - The ID of the order to delete.
+   * @returns {Promise<boolean>} True if an order was deleted.
+   */
+  async remove(companyId, orderId) {
     const { rowCount } = await pool.query(
-      `DELETE FROM ${orderTable} WHERE order_id = $1`,
-      [orderId]
+      'DELETE FROM orders WHERE company_id = $1 AND order_id = $2',
+      [companyId, orderId]
     );
     return rowCount > 0;
   }
-}
+};

@@ -120,15 +120,16 @@ export default class CompanyModel {
     const userRes = await client.query(userInsert, [company_id, user_id]);
     const user = userRes.rows[0];
 
-    // Step 3: Insert into user_profiles using user_id
+    // Step 3: Insert into user_profiles with company_id for the FK
     const profileInsert = `
       INSERT INTO user_profiles
-      (user_pk, name, email, phone, password, role)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      (company_id, user_id, name, email, phone, password, role)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *;
     `;
     const profileRes = await client.query(profileInsert, [
-      user.user_id, // <-- FIXED
+      user.company_id, // add company_id here
+      user.user_id,
       name,
       email,
       phone,
@@ -149,6 +150,7 @@ export default class CompanyModel {
     client.release();
   }
 }
+
 
 
 
@@ -182,4 +184,3 @@ export default class CompanyModel {
     return results;
   }
 }
-

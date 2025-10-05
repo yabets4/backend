@@ -6,6 +6,10 @@ export default class LocationsController {
     try {
       const { companyId } = req.params;
       const data = await service.createLocation(companyId, req.body);
+      console.log('req.body:', req.body);
+      
+      console.log('Created Location:', data);
+      
       return ok(res, data);
     } catch (e) {
       next(e);

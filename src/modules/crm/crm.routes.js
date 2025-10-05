@@ -1,23 +1,23 @@
 import { Router } from 'express';
-import OrderController from './order/order.controller.js';
 import auth from '../../middleware/auth.middleware.js';
 import permission from '../../middleware/permission.middleware.js';
 import Leads from './lead/lead.routes.js'
 import customer from './customer/customers.routes.js'
+import Quote from './quote/quote.routes.js'
+import Order from './order/order.routes.js'
+import Report from './report/report.route.js'
 import { authenticateJWT } from '../../middleware/jwt.middleware.js';
 import { requestCounter } from '../../middleware/requestCounter.middleware.js';
+import {CheckCompanyStatus} from '../../middleware/checkTierLimit.middleware.js';
+
 
 const r = Router(); 
-r.use(auth(false), authenticateJWT, requestCounter );
+r.use(auth(true), authenticateJWT, CheckCompanyStatus, requestCounter );
 
 r.use('/customers', customer)
-
-// Orders
-r.get('/orders', OrderController.getAll);
-r.get('/orders/:id', OrderController.getById);
-r.post('/orders', permission('order_create'), OrderController.create);
-r.patch('/orders/:id/status', permission('order_update'), OrderController.updateStatus);
-r.delete('/orders/:id', permission('order_delete'), OrderController.delete);
+r.use('/orders', Order)
+r.use('/quote', Quote)
+r.use('/reports', Report)
 
 // leads
 r.use('/leads', Leads)
