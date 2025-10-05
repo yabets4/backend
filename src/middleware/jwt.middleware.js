@@ -18,7 +18,7 @@ export const authenticateJWT = (req, res, next) => {
     req.auth = {
       user: decoded.sub,          // user's email or identifier
       roles: decoded.roles || [], // array of roles
-      company: decoded.company_id, // user's company_id
+      companyID: decoded.company_id, // user's company_id
       gps: decoded.gps // user's gps
     };
 

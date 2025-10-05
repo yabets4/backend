@@ -7,38 +7,40 @@ export const requestCounter = async (req, res, next) => {
   let userId = null;
   let companyId = null;
 
-  // Try to decode JWT if present
+  // Decode JWT if present
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.split(' ')[1];
     try {
       const decoded = jwt.verify(token, appConfig.jwtSecret);
-      userId = decoded.sub;
-      companyId = decoded.company_id;
+      userId = decoded.sub;          // matches users.user_id
+      companyId = decoded.company_id; // matches users.company_id
     } catch (err) {
-      // invalid token, ignore
+      console.warn("Invalid JWT:", err.message);
     }
   }
 
-  // Track user/company requests
-  try {
-    await pool.query(
-      `
-      INSERT INTO api_request_counts (user_id, company_id, request_count, last_request)
-      VALUES ($1, $2, 1, NOW())
-      ON CONFLICT (user_id, company_id)
-      DO UPDATE SET 
-        request_count = api_request_counts.request_count + 1,
-        last_request = NOW()
-      `,
-      [userId, companyId]
-    );
-  } catch (err) {
-    console.error("Failed to save user/company request count:", err.message);
+  // Track user/company requests only if companyId is present
+  if (companyId) {
+    try {
+      await pool.query(
+        `
+        INSERT INTO api_request_counts (company_id, user_id, request_count, last_request)
+        VALUES ($1, $2, 1, NOW())
+        ON CONFLICT (company_id, user_id)
+        DO UPDATE SET 
+          request_count = api_request_counts.request_count + 1,
+          last_request = NOW()
+        `,
+        [companyId, userId]
+      );
+    } catch (err) {
+      console.error("Failed to save user/company request count:", err.message);
+    }
   }
 
   // Track route requests
-  const routePath = req.route?.path || req.path; // fallback to req.path if no named route
+  const routePath = req.route?.path || req.path;
   const method = req.method;
 
   try {

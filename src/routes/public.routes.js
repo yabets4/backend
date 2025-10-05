@@ -13,26 +13,44 @@ r.post('/auth/login', async (req, res) => {
   }
 
   try {
-    // Fetch user and their company_id
+    // Join user_profiles -> users to get company_id and user_id
     const result = await pool.query(
-      `SELECT id, email, password, role, company_id FROM users WHERE email = $1 LIMIT 1`,
+      `
+      SELECT 
+        up.id AS profile_id,
+        up.email,
+        up.password,
+        up.role,
+        u.company_id,
+        u.user_id       -- fetch the actual user_id from users
+      FROM user_profiles up
+      JOIN users u 
+        ON up.user_id = u.user_id AND up.company_id = u.company_id
+      WHERE up.email = $1
+      LIMIT 1
+      `,
       [email]
     );
+
     const user = result.rows[0];
     if (!user) return unauthorized(res, 'User not found');
 
-    // Direct password check
+    // TODO: use bcrypt compare in production
     if (user.password !== password) {
       return unauthorized(res, 'Invalid credentials');
     }
 
-    // Create JWT with company_id included
+    console.log(user);
+    console.log(user.user_id);
+    
+
+    // Create JWT with correct user_id
     const token = jwt.sign(
       {
-        sub: user.email,
+        sub: user.user_id,       // ✅ now matches users.user_id
         roles: [user.role],
         company_id: user.company_id,
-        gps: gps
+        gps,
       },
       appConfig.jwtSecret,
       { expiresIn: '12h' }
@@ -45,15 +63,14 @@ r.post('/auth/login', async (req, res) => {
       [user.email, user.role, gps.lat, gps.lon]
     );
 
-    // Respond
-    return ok(res, {
-      token
-    });
+    return ok(res, { token });
   } catch (err) {
     console.error('Login error:', err);
     return badRequest(res, 'Login failed');
   }
 });
+
+
 
 // ---------------- Admin Login ----------------
 r.post('/login', async (req, res) => {
