@@ -1,8 +1,19 @@
-import model from './project.model.js';
+import { ProjectModel } from './project.model.js';
+
 export default {
-  list:(p,o)=>model.findAll(p,o),
-  get:(p,id)=>model.findById(p,id),
-  create:(p,d)=>model.create(p,d),
-  update:(p,id,d)=>model.update(p,id,d),
-  remove:(p,id)=>model.remove(p,id),
+  async list(companyId) {
+    return await ProjectModel.findAll(companyId);
+  },
+  async get(companyId, projectId) {
+    return await ProjectModel.findById(companyId, projectId);
+  },
+  async create(companyId, data) {
+    return await ProjectModel.create(companyId, data);
+  },
+  async update(companyId, projectId, data) {
+    return await ProjectModel.update(companyId, projectId, data);
+  },
+  async remove(companyId, projectId) {
+    return await ProjectModel.remove(companyId, projectId);
+  },
 };

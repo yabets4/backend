@@ -132,6 +132,7 @@ export const OrderModel = {
    * @returns {Promise<Array>} A list of all orders.
    */
   async findAll(companyId) {
+    // Fetch all orders and attach their order_items in a single follow-up query
     const query = `
       SELECT o.*, l.name as customer_name
       FROM orders o
@@ -139,7 +140,24 @@ export const OrderModel = {
       WHERE o.company_id = $1 ORDER BY o.created_at DESC
     `;
     const { rows } = await pool.query(query, [companyId]);
-    return rows;
+
+    // Fetch all order items for this company and group them by order_id
+    const { rows: itemRows } = await pool.query(
+      'SELECT * FROM order_items WHERE company_id = $1 ORDER BY id',
+      [companyId]
+    );
+
+    const itemsByOrder = itemRows.reduce((acc, item) => {
+      if (!acc[item.order_id]) acc[item.order_id] = [];
+      acc[item.order_id].push(item);
+      return acc;
+    }, {});
+
+    // Attach items array (empty if none) to each order row
+    return rows.map(order => ({
+      ...order,
+      items: itemsByOrder[order.order_id] || []
+    }));
   },
 
   /**
@@ -175,28 +193,75 @@ export const OrderModel = {
    * @returns {Promise<object|null>} The updated order object or null if not found.
    */
   async update(companyId, orderId, data) {
-    // This is a simplified update. A full implementation might involve a transaction
-    // to update items, similar to the create method.
-    const { status, delivery_date, total_amount } = data;
-    const { rows } = await pool.query(
-      `UPDATE orders SET 
-         status = COALESCE($3, status), 
-         delivery_date = COALESCE($4, delivery_date),
-         total_amount = COALESCE($5, total_amount),
-         updated_at = NOW()
-       WHERE company_id = $1 AND order_id = $2
-       RETURNING *`,
-      [companyId, orderId, status, delivery_date, total_amount]
-    );
-    return rows.length > 0 ? rows[0] : null;
+    // Full update with transactional handling of items.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      const { status, delivery_date, total_amount, order_date, quote_id } = data;
+      const { rows } = await client.query(
+        `UPDATE orders SET 
+           status = COALESCE($3, status), 
+           delivery_date = COALESCE($4, delivery_date),
+           total_amount = COALESCE($5, total_amount),
+           order_date = COALESCE($6, order_date),
+           updated_at = NOW()
+         WHERE company_id = $1 AND order_id = $2
+         RETURNING *`,
+        [companyId, orderId, status, delivery_date, total_amount, order_date]
+      );
+
+      if (rows.length === 0) {
+        await client.query('ROLLBACK');
+        return null;
+      }
+
+      // If items provided in payload, reconcile them by deleting existing and inserting new ones.
+      const incomingItems = data.items && data.items.length ? data.items : (data.orderItems || []);
+      const createdItems = [];
+      if (incomingItems && incomingItems.length > 0) {
+        // Remove existing items for this order
+        await client.query('DELETE FROM order_items WHERE company_id = $1 AND order_id = $2', [companyId, orderId]);
+
+        for (const item of incomingItems) {
+          const itemQuery = `
+            INSERT INTO order_items (company_id, order_id, quote_id, product_name, quantity, unit_price, description)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING *;
+          `;
+          const itemValues = [
+            companyId,
+            orderId,
+            item.quote_id || quote_id || data.quote_id || null,
+            item.product_name || item.name || item.item || null,
+            item.quantity ?? item.qty ?? 1,
+            item.unit_price ?? item.price ?? item.unit_price ?? 0,
+            item.description || null,
+          ];
+          const { rows: itemRows } = await client.query(itemQuery, itemValues);
+          createdItems.push(itemRows[0]);
+        }
+      }
+
+      await client.query('COMMIT');
+
+      // Build updated order object (include items)
+      const updatedOrder = rows[0];
+      updatedOrder.items = createdItems.length ? createdItems : (await (async () => {
+        const { rows: itemRows } = await pool.query('SELECT * FROM order_items WHERE company_id = $1 AND order_id = $2 ORDER BY id', [companyId, orderId]);
+        return itemRows;
+      })());
+
+      return updatedOrder;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      console.error('Error updating order with items:', error);
+      throw new Error('Could not update order');
+    } finally {
+      client.release();
+    }
   },
 
-  /**
-   * Deletes an order. The `ON DELETE CASCADE` in the schema handles deleting items.
-   * @param {string} companyId - The ID of the company.
-   * @param {string} orderId - The ID of the order to delete.
-   * @returns {Promise<boolean>} True if an order was deleted.
-   */
   async remove(companyId, orderId) {
     const { rowCount } = await pool.query(
       'DELETE FROM orders WHERE company_id = $1 AND order_id = $2',
