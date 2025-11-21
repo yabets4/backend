@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import AttendanceController from './Attendance.controller.js';
+import AttendanceController from './attendance.controller.js';
 import { uploadAttendanceCsv } from '../../../middleware/multer.middleware.js';
 
 const r = Router();
@@ -14,3 +14,4 @@ r.put('/:id', AttendanceController.update);
 r.delete('/:id', AttendanceController.delete);
 
 export default r;
+
