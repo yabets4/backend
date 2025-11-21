@@ -9,8 +9,8 @@ CREATE TABLE raw_materials (
     minimum_stock INT NOT NULL,
     shelf_life DATE,
     supplier_id VARCHAR(20) NOT NULL,      -- references suppliers table
-    location VARCHAR(20) NOT NULL,      -- references locations table
     current_stock INT DEFAULT 0,
+    location VARCHAR(20) NOT NULL REFERENCES locations(name),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (company_id, raw_material_id)
 );
@@ -51,7 +51,14 @@ CREATE TABLE suppliers (
     company_id VARCHAR(20) NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
     supplier_id VARCHAR(20) NOT NULL,
     name VARCHAR(255) NOT NULL,
+    contact_person VARCHAR(100),
+    email VARCHAR(100),
+    phone VARCHAR(20),
+    address TEXT,
+    status VARCHAR(50),
+    payment_terms VARCHAR(100),
     contact_info TEXT,
+    notes TEXT,
     PRIMARY KEY (company_id, supplier_id)
 );
 

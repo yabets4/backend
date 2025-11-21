@@ -16,7 +16,6 @@ export const RawMaterialsModel = {
         rm.minimum_stock,
         rm.shelf_life,
         rm.supplier_id,
-        rm.location,
         rm.created_at,
         rmp.description,
         rmp.specifications,
@@ -104,8 +103,7 @@ export const RawMaterialsModel = {
         rm.cost_price,
         rm.minimum_stock,
         rm.shelf_life,
-        rm.supplier_id,
-        rm.location,
+  rm.supplier_id,
         rm.created_at,
         rmp.description,
         rmp.specifications,
@@ -155,13 +153,13 @@ export const RawMaterialsModel = {
           data.minimum_stock,
           data.shelf_life || null,
           data.supplier_id,
-          data.location,
+          data.location_id || null,
           data.current_stock || 0
         ]
       );
       const rawMaterial = rmRes.rows[0];
 
-      // Insert profile
+      // Insert profile (note: profile table stores description/specs/image_url)
       const profileRes = await client.query(
         `INSERT INTO raw_materials_profile (
           company_id, raw_material_id, description, specifications, image_url
@@ -201,8 +199,8 @@ export const RawMaterialsModel = {
           minimum_stock = $5,
           shelf_life = $6,
           supplier_id = $7,
-          location = $8
-        WHERE company_id = $9 AND raw_material_id = $10`,
+          location_id = $8
+        WHERE company_id = $8 AND raw_material_id = $9`,
         [
           data.name,
           data.category_id,
@@ -211,7 +209,7 @@ export const RawMaterialsModel = {
           data.minimum_stock,
           data.shelf_life,
           data.supplier_id,
-          data.location,
+          data.location_id || null,
           companyId,
           rawMaterialId
         ]

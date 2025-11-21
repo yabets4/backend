@@ -58,6 +58,12 @@ export async function createRawMaterial(req, res) {
       data.image_url = `/uploads/${safeName}/rawMaterials/${req.file.filename}`;
     }
 
+    // Ensure numeric location_id if provided
+    if (data.location_id) {
+      const parsed = parseInt(data.location_id, 10);
+      data.location_id = Number.isNaN(parsed) ? data.location_id : parsed;
+    }
+
     const newMaterial = await RawMaterialsService.create(companyID, data);
     return ok(res, newMaterial);
 
@@ -84,6 +90,12 @@ export async function updateRawMaterial(req, res) {
     // Set DB path to match Multer's folder structure
     if (req.file) {
       data.image_url = `/uploads/${safeName}/rawMaterials/${req.file.filename}`;
+    }
+
+    // Ensure numeric location_id if provided
+    if (data.location_id) {
+      const parsed = parseInt(data.location_id, 10);
+      data.location_id = Number.isNaN(parsed) ? data.location_id : parsed;
     }
 
     const updated = await RawMaterialsService.update(companyID, id, data);

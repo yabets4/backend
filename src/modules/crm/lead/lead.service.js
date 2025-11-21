@@ -59,24 +59,19 @@ export const LeadsService = {
     console.log("[Service] Input data:", data);
 
     // Required fields check
-    const requiredFields = [
-      "lead_type",
-      "name",
-      "primary_phone",
-      "lead_source",
-      "service_requested",
-    ];
-    const missingFields = requiredFields.filter((f) => !data[f]);
-    if (missingFields.length) {
-      throw new Error(`Missing required fields: ${missingFields.join(", ")}`);
-    }
+
 
     try {
       const newLead = await LeadsModel.insert(companyId, data, attachments);
+
+      if (!newLead) {
+        throw new Error(`A lead with phone number ${data.primary_phone} already exists.`);
+      }
+
       console.log("[Service] Lead created successfully:", newLead.lead_id);
       return newLead;
     } catch (err) {
-      console.error("[Service] Error creating lead:", err);
+      console.log("[Service] Error creating lead:", err);
       throw err;
     }
   },
