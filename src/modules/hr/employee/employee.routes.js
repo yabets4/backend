@@ -14,8 +14,11 @@ const employeeUploads = uploadEmployeePhoto.fields([
 
 r.get('/',  EmployeeController.getAll);
 r.get('/:id',  EmployeeController.getById);
+r.get('/:id/leave-balances', EmployeeController.getLeaveBalances);
 r.post('/',  uploadEmployeePhoto.any(), EmployeeController.create);
 r.put('/:id',  employeeUploads, EmployeeController.update);
 r.delete('/:id', EmployeeController.delete);
+// Admin: set leave balances for an employee
+r.post('/:id/leave-balances', EmployeeController.setLeaveBalances);
 
 export default r;

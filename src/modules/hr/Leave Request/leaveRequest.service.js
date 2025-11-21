@@ -5,36 +5,36 @@ export default class LeaveRequestService {
     this.model = new LeaveRequestModel();
   }
 
-  async getAllLeaveRequests(prefix, options) {
-    return await this.model.findAll(prefix, options);
+  async getAllLeaveRequests(companyId, options) {
+    return await this.model.findAll(companyId, options);
   }
 
-  async getLeaveRequestById(prefix, id) {
-    return await this.model.findById(prefix, id);
+  async getLeaveRequestById(companyId, id) {
+    return await this.model.findById(companyId, id);
   }
 
-  async getLeaveRequestsByEmployee(prefix, employeeId) {
-    return await this.model.findByEmployeeId(prefix, employeeId);
+  async getLeaveRequestsByEmployee(companyId, employeeId) {
+    return await this.model.findByEmployeeId(companyId, employeeId);
   }
 
-  async createLeaveRequest(prefix, data) {
-    return await this.model.create(prefix, data);
+  async createLeaveRequest(companyId, data) {
+    return await this.model.create(companyId, data);
   }
 
-  async updateLeaveRequest(prefix, id, data) {
-    return await this.model.update(prefix, id, data);
+  async updateLeaveRequest(companyId, id, data) {
+    return await this.model.update(companyId, id, data);
   }
 
-  async deleteLeaveRequest(prefix, id) {
-    return await this.model.delete(prefix, id);
+  async deleteLeaveRequest(companyId, id) {
+    return await this.model.delete(companyId, id);
   }
 
-  async approveLeaveRequest(prefix, id, approver_comments) {
-    return await this.model.approve(prefix, id, approver_comments);
+  async approveLeaveRequest(companyId, id, approver_comments) {
+    return await this.model.approve(companyId, id, approver_comments);
   }
 
-  async rejectLeaveRequest(prefix, id, approver_comments) {
-    return await this.model.reject(prefix, id, approver_comments);
+  async rejectLeaveRequest(companyId, id, approver_comments) {
+    return await this.model.reject(companyId, id, approver_comments);
   }
 
 }

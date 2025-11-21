@@ -33,6 +33,33 @@ console.log('Body:', req.body);
     }
   }
 
+  // GET /employees/:id/leave-balances
+  static async getLeaveBalances(req, res, next) {
+    try {
+      const companyId = req.auth.companyID;
+      const balances = await service.getLeaveBalances(companyId, req.params.id);
+      return ok(res, balances);
+    } catch (e) {
+      next(e);
+    }
+  }
+
+  // POST /employees/:id/leave-balances
+  static async setLeaveBalances(req, res, next) {
+    try {
+      const companyId = req.auth.companyID;
+      let data = req.body;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch (e) { data = []; }
+      }
+      const balances = Array.isArray(data) ? data : (data.balances || []);
+      await service.setLeaveBalances(companyId, req.params.id, balances);
+      return ok(res, { success: true });
+    } catch (e) {
+      next(e);
+    }
+  }
+
   // POST /employees
   static async create(req, res, next) {
     try {

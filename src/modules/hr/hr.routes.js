@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import EmployeeController from './employee/employee.routes.js';
-import LeaveRequestController from './Leave Request/leaveRequest.controller.js';
+import leaveRequestRoutes from './Leave Request/leaveRequest.routes.js';
 import AssignedToolController from './assigned Tool/assignedTool.controller.js';
 import Attendance from "./attendance/attendance.routes.js"
 import ShiftController from './shift/shift.controller.js';
@@ -19,22 +19,15 @@ r.use('/attendance', Attendance)
 
 
 // --- shift ---
-r.get('/shift', ShiftController.getAll);
-r.get('/shift/:id', ShiftController.getById);
+r.get('/shift', ShiftController.list);
+r.get('/shift/:id', ShiftController.get);
 r.get('/shift/employee/:employeeId', ShiftController.getByEmployee);
 r.post('/shift', ShiftController.create);
 r.put('/shift/:id', ShiftController.update);
 r.delete('/shift/:id', ShiftController.delete);
 
 // --- leave-request ---
-r.get('/leave-request', LeaveRequestController.getAll);
-r.get('/leave-request/:id', LeaveRequestController.getById);
-r.get('/leave-request/employee/:employeeId', LeaveRequestController.getByEmployee);
-r.post('/leave-request/:id/approve', LeaveRequestController.approve);
-r.post('/leave-request/:id/reject', LeaveRequestController.reject);
-r.post('/leave-request', LeaveRequestController.create);
-r.put('/leave-request/:id', LeaveRequestController.update);
-r.delete('/leave-request/:id', LeaveRequestController.delete);
+r.use('/leave-request', leaveRequestRoutes);
 
 // --- assigned-tools ---
 r.get('/assigned-tools', AssignedToolController.getAll);

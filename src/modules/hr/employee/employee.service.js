@@ -25,6 +25,27 @@ export default class EmployeeService {
     }
   }
 
+  // Get leave balances for an employee
+  async getLeaveBalances(companyId, employeeId) {
+    try {
+      return await EmployeeModel.getLeaveBalances(companyId, employeeId);
+    } catch (err) {
+      console.error('Service error: getLeaveBalances', err);
+      throw new Error('Could not fetch leave balances');
+    }
+  }
+
+  // Upsert leave balances (admin)
+  async setLeaveBalances(companyId, employeeId, balances) {
+    try {
+      await EmployeeModel.upsertLeaveBalances(companyId, employeeId, balances || []);
+      return { success: true };
+    } catch (err) {
+      console.error('Service error: setLeaveBalances', err);
+      throw new Error('Could not set leave balances');
+    }
+  }
+
   // ✅ Create new employee
 async createEmployee(companyId, data) {
   try {

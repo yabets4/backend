@@ -1,68 +1,90 @@
 import pool from '../../../loaders/db.loader.js';
-import { tableName } from '../../../utils/prefix.utils.js';
 
 export default class ShiftModel {
-  // --- Shifts ---
-  async findAll(prefix, { limit = 50, offset = 0 } = {}) {
-    const { rows } = await pool.query(
-      `SELECT * FROM ${tableName('shift', prefix)} ORDER BY shift_date ASC LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
+  // Find shifts for a company. opts: { employee_id, start_date, end_date, limit, offset }
+  async findAll(companyId, opts = {}) {
+    const { employee_id, start_date, end_date, limit = 100, offset = 0 } = opts;
+    const clauses = ['company_id = $1'];
+    const params = [companyId];
+    let idx = 2;
+    if (employee_id) {
+      clauses.push(`employee_id = $${idx++}`);
+      params.push(employee_id);
+    }
+    if (start_date) {
+      clauses.push(`shift_date >= $${idx++}`);
+      params.push(start_date);
+    }
+    if (end_date) {
+      clauses.push(`shift_date <= $${idx++}`);
+      params.push(end_date);
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+    const q = `SELECT * FROM shift ${where} ORDER BY shift_date ASC LIMIT $${idx++} OFFSET $${idx++}`;
+    params.push(limit);
+    params.push(offset);
+    const { rows } = await pool.query(q, params);
     return rows;
   }
 
-  async findById(prefix, id) {
+  async findById(companyId, shiftId) {
     const { rows } = await pool.query(
-      `SELECT * FROM ${tableName('shift', prefix)} WHERE id = $1`,
-      [id]
+      `SELECT * FROM shift WHERE company_id = $1 AND (shift_id = $2 OR id::text = $2)`,
+      [companyId, shiftId]
     );
     return rows[0] || null;
   }
 
-  async findByEmployeeId(prefix, employeeId) {
+  async findByEmployeeId(companyId, employeeId) {
     const { rows } = await pool.query(
-      `SELECT * FROM ${tableName('shift', prefix)} WHERE employee_id = $1 ORDER BY shift_date ASC`,
-      [employeeId]
+      `SELECT * FROM shift WHERE company_id = $1 AND employee_id = $2 ORDER BY shift_date ASC`,
+      [companyId, employeeId]
     );
     return rows;
   }
 
-  async create(prefix, data) {
-    const shiftTable = tableName('shift', prefix);
-    const { employee_id, shift_date, start_time, end_time, location_name, notes } = data;
+  async create(companyId, data) {
+    const { shift_id, employee_id, employee_name, shift_date, start_time, end_time, type, location_name, notes } = data;
+
+    // generate shift_id if not provided
+    let sid = shift_id;
+    if (!sid) {
+      sid = `SHIFT-${Date.now() % 1000000}-${Math.floor(Math.random() * 1000)}`;
+    }
 
     const { rows } = await pool.query(
-      `INSERT INTO ${shiftTable} 
-      (employee_id, shift_date, start_time, end_time, location_name, notes)
-      VALUES ($1,$2,$3,$4,$5,$6)
-      RETURNING *`,
-      [employee_id, shift_date, start_time, end_time, location_name || null, notes || null]
+      `INSERT INTO shift (company_id, shift_id, employee_id, employee_name, shift_date, start_time, end_time, type, location_name, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      [companyId, sid, employee_id, employee_name || null, shift_date, start_time || null, end_time || null, type || null, location_name || null, notes || null]
     );
-
     return rows[0];
   }
 
-  async update(prefix, id, data) {
-    const shiftTable = tableName('shift', prefix);
-    const { employee_id, shift_date, start_time, end_time, location_name, notes } = data;
-
-    const { rows } = await pool.query(
-      `UPDATE ${shiftTable} 
-       SET employee_id=$1, shift_date=$2, start_time=$3, end_time=$4, location_name=$5, notes=$6
-       WHERE id=$7
-       RETURNING *`,
-      [employee_id, shift_date, start_time, end_time, location_name || null, notes || null, id]
-    );
-
-    return rows[0];
+  async update(companyId, shiftId, data) {
+    // Build dynamic set clause
+    const allowed = ['employee_id', 'employee_name', 'shift_date', 'start_time', 'end_time', 'type', 'location_name', 'notes'];
+    const fields = [];
+    const params = [companyId, shiftId];
+    let idx = 3;
+    for (const k of allowed) {
+      if (k in data) {
+        fields.push(`${k} = $${idx++}`);
+        params.push(data[k]);
+      }
+    }
+    if (fields.length === 0) return null;
+    fields.push(`updated_at = CURRENT_TIMESTAMP`);
+    const q = `UPDATE shift SET ${fields.join(', ')} WHERE company_id = $1 AND (shift_id = $2 OR id::text = $2) RETURNING *`;
+    const { rows } = await pool.query(q, params);
+    return rows[0] || null;
   }
 
-  async delete(prefix, id) {
-    const shiftTable = tableName('shift', prefix);
+  async delete(companyId, shiftId) {
     const { rows } = await pool.query(
-      `DELETE FROM ${shiftTable} WHERE id=$1 RETURNING *`,
-      [id]
+      `DELETE FROM shift WHERE company_id = $1 AND (shift_id = $2 OR id::text = $2) RETURNING *`,
+      [companyId, shiftId]
     );
-    return rows[0];
+    return rows[0] || null;
   }
 }

@@ -261,9 +261,68 @@ async findById(companyId, employeeId) {
     );
     employee.part_time_schedule = scheduleRows;
   }
+  // Fetch leave balances if available
+  try {
+    const { rows: leaveRows } = await pool.query(
+      `SELECT id, leave_type, leave_type_key, total_days, remaining_days FROM employee_leave_balances
+       WHERE company_id = $1 AND employee_id = $2 ORDER BY leave_type_key`,
+      [companyId, employeeId]
+    );
+    employee.leaveBalances = leaveRows;
+  } catch (e) {
+    employee.leaveBalances = [];
+  }
+
   return employee;
 }
 ,
+
+  // ✅ GET/UPSERT Leave Balances for an employee
+  async getLeaveBalances(companyId, employeeId) {
+    const { rows } = await pool.query(
+      `SELECT id, leave_type, leave_type_key, total_days, remaining_days, created_at, updated_at
+       FROM employee_leave_balances
+       WHERE company_id = $1 AND employee_id = $2
+       ORDER BY leave_type_key`,
+      [companyId, employeeId]
+    );
+    return rows;
+  },
+
+  async upsertLeaveBalances(companyId, employeeId, balances = []) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const b of balances) {
+        const leaveType = b.leave_type || b.type || null;
+        const leaveKey = (b.leave_type_key || b.type_key || b.type || '') && String(b.leave_type_key || b.type_key || b.type || '').toLowerCase().replace(/\s+/g, '_');
+        const total = Number.isFinite(Number(b.total_days)) ? Number(b.total_days) : (b.total_days ? parseInt(b.total_days, 10) : 0);
+        const remaining = Number.isFinite(Number(b.remaining_days)) ? Number(b.remaining_days) : (b.remaining_days ? parseInt(b.remaining_days, 10) : 0);
+
+        // Try update first
+        const { rowCount } = await client.query(
+          `UPDATE employee_leave_balances SET leave_type = $1, leave_type_key = $2, total_days = $3, remaining_days = $4, updated_at = NOW()
+           WHERE company_id = $5 AND employee_id = $6 AND leave_type_key = $2`,
+          [leaveType, leaveKey, total, remaining, companyId, employeeId]
+        );
+
+        if (rowCount === 0) {
+          await client.query(
+            `INSERT INTO employee_leave_balances (company_id, employee_id, leave_type, leave_type_key, total_days, remaining_days)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [companyId, employeeId, leaveType, leaveKey, total, remaining]
+          );
+        }
+      }
+      await client.query('COMMIT');
+      return true;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  },
 
 
   // ✅ UPDATE AN EMPLOYEE (static + related tables)
