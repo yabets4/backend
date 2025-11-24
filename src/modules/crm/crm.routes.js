@@ -14,10 +14,11 @@ import {CheckCompanyStatus} from '../../middleware/checkTierLimit.middleware.js'
 
 const r = Router(); 
 r.use(auth(true), authenticateJWT, CheckCompanyStatus, requestCounter );
+r.use('/orders', Order)
 
 r.use('/customers', customer)
 r.use('/locations', Location)
-r.use('/orders', Order)
+
 r.use('/quote', Quote)
 r.use('/reports', Report)
 

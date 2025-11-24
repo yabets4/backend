@@ -21,6 +21,7 @@ export default {
       return created(res, createdItem);
     } catch (e) { next(e); }
   },
+  
   update: async (req, res, next) => {
     try {
       const updated = await service.update(req.tenantPrefix, req.params.id, req.body);

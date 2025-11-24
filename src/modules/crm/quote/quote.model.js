@@ -84,7 +84,6 @@ export const QuoteModel = {
       `SELECT * FROM quotes WHERE company_id = $1 ORDER BY created_at DESC`,
       [companyId]
     );
-    console.log(rows);
     
     return rows;
   },
@@ -136,9 +135,6 @@ export const QuoteModel = {
        RETURNING next_quote_number`,
       [companyId]
     );
-    console.log(companyId);
-    
-    console.log(nextNumRes.rows);
     if (!nextNumRes.rows[0]) {
   throw new Error(`Company not found: ${companyId}`);
 }

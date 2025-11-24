@@ -1,5 +1,6 @@
 import { CustomersService } from "./customer.service.js";
 import { ok, badRequest, notFound } from "../../../utils/apiResponse.js";
+import { getCompanyNameById } from "../../../middleware/services/company.service.js";
 
 // GET all customers
 export async function getCustomers(req, res) {
@@ -33,8 +34,9 @@ export async function createCustomer(req, res) {
     let customerData = { ...req.body };
 
     if (req.file) {
-      const filePath = req.file.path.replace(/\\/g, "/");
-      customerData.photo_url = `/uploads/${companyID}/customers/${req.file.filename}`;
+        // Derive the returned uploads URL from multer's saved path so it matches the static /uploads route
+        const relativePath = req.file.path.split('uploads')[1].replace(/\\/g, '/');
+        customerData.photo_url = `/uploads${relativePath}`;
     }
 
     const newCustomer = await CustomersService.create(companyID, customerData);
@@ -53,7 +55,8 @@ export async function updateCustomer(req, res) {
     let customerData = { ...req.body };
 
     if (req.file) {
-      customerData.photo_url = `/uploads/${companyID}/customers/${req.file.filename}`;
+      const relativePath = req.file.path.split('uploads')[1].replace(/\\/g, '/');
+      customerData.photo_url = `/uploads${relativePath}`;
     }
 
     const updated = await CustomersService.update(companyID, customerId, customerData);

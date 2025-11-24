@@ -34,14 +34,17 @@ export const CustomersModel = {
   return result.rows;
 },
 
-async findById(companyId, customerId) {
-  const result = await pool.query(
+  async findById(companyId, customerId) {
+  // Step 1: Fetch customer + profile + lead
+  const baseQuery = await pool.query(
     `
     SELECT 
       c.id,
       c.customer_id,
       c.company_id,
       c.created_at,
+
+      -- Profile data
       cp.customer_type,
       cp.name,
       cp.contact_name,
@@ -54,18 +57,91 @@ async findById(companyId, customerId) {
       cp.tin_number,
       cp.photo_url,
       cp.gender,
-      cp.birthday
+      cp.birthday,
+
+      -- Lead info
+      l.lead_id,
+      l.lead_type,
+      l.primary_phone AS lead_primary_phone,
+      l.email AS lead_email,
+
+      -- Lead profile
+      lp.status AS lead_status,
+      lp.priority AS lead_priority,
+      lp.service_requested,
+      lp.assigned_to
+
     FROM customers c
     LEFT JOIN customer_profiles cp 
-      ON c.company_id = cp.company_id AND c.customer_id = cp.customer_id
+      ON c.company_id = cp.company_id 
+     AND c.customer_id = cp.customer_id
+
+    LEFT JOIN leads l
+      ON l.company_id = c.company_id
+     AND l.customer_id = c.customer_id
+
+    LEFT JOIN leads_profile lp
+      ON lp.company_id = l.company_id
+     AND lp.lead_id = l.lead_id
+
     WHERE c.company_id = $1 
       AND c.customer_id = $2
     LIMIT 1
     `,
     [companyId, customerId]
   );
-  return result.rows[0];
+
+  const customer = baseQuery.rows[0];
+  if (!customer) return null;
+
+  const leadId = customer.lead_id || null;
+
+  // Step 2: Fetch metrics only if lead_id exists
+  let metrics = {
+    total_orders: 0,
+    total_revenue: 0,
+    last_payment: null,
+    overdue_amount: 0,
+  };
+
+  if (leadId) {
+    const metricsQuery = await pool.query(
+      `
+      SELECT 
+        (SELECT COUNT(*) 
+         FROM orders o 
+         WHERE o.company_id = $1 AND o.lead_id = $2) AS total_orders,
+
+        (SELECT COALESCE(SUM(total_amount),0)
+         FROM orders o 
+         WHERE o.company_id = $1 AND o.lead_id = $2) AS total_revenue,
+
+        (SELECT MAX(updated_at)
+         FROM orders o
+         WHERE o.company_id = $1 
+           AND o.lead_id = $2
+           AND o.status='Completed') AS last_payment,
+
+        (SELECT COALESCE(SUM(total_amount),0)
+         FROM orders o
+         WHERE o.company_id = $1
+           AND o.lead_id = $2
+           AND o.delivery_date < CURRENT_DATE - INTERVAL '60 days'
+           AND o.status!='Completed') AS overdue_amount
+      `,
+      [companyId, leadId]
+    );
+
+    metrics = metricsQuery.rows[0];
+  }
+
+  // Step 3: return everything merged
+  return {
+    ...customer,
+    metrics,
+  };
 },
+
 
 
   async insert(companyId, data) {
@@ -143,29 +219,25 @@ async findById(companyId, customerId) {
       sanitizedData[key] = data[key] !== undefined ? data[key] : null;
     }
 
-    const query = `
-      INSERT INTO customer_profiles (
-        company_id, customer_id,
-        customer_type, name, email, phone, tin_number,
-        billing_address, shipping_address, photo_url, gender, birthday,
-        contact_name, contact_phone, job_title, created_at
-      )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW())
-      ON CONFLICT (company_id, customer_id) DO UPDATE SET
-        customer_type = EXCLUDED.customer_type,
-        name = EXCLUDED.name,
-        email = EXCLUDED.email,
-        phone = EXCLUDED.phone,
-        tin_number = EXCLUDED.tin_number,
-        billing_address = EXCLUDED.billing_address,
-        shipping_address = EXCLUDED.shipping_address,
-        photo_url = EXCLUDED.photo_url,
-        gender = EXCLUDED.gender,
-        birthday = EXCLUDED.birthday,
-        contact_name = EXCLUDED.contact_name,
-        contact_phone = EXCLUDED.contact_phone,
-        job_title = EXCLUDED.job_title,
+    // Try to update first. Using UPDATE avoids relying on a UNIQUE constraint
+    // that may not exist on (company_id, customer_id) in customer_profiles.
+    const updateQuery = `
+      UPDATE customer_profiles SET
+        customer_type = $3,
+        name = $4,
+        email = $5,
+        phone = $6,
+        tin_number = $7,
+        billing_address = $8,
+        shipping_address = $9,
+        photo_url = $10,
+        gender = $11,
+        birthday = $12,
+        contact_name = $13,
+        contact_phone = $14,
+        job_title = $15,
         updated_at = NOW()
+      WHERE company_id = $1 AND customer_id = $2
       RETURNING *;
     `;
 
@@ -187,10 +259,42 @@ async findById(companyId, customerId) {
       sanitizedData.job_title || null,
     ];
 
-    const { rows } = await client.query(query, values);
-    await client.query("COMMIT");
+    let result = await client.query(updateQuery, values);
 
-    return rows[0];
+    // If no existing profile was updated, insert a new profile row
+    if (result.rows.length === 0) {
+      const insertQuery = `
+        INSERT INTO customer_profiles (
+          company_id, customer_id, customer_type, name, contact_name, contact_phone,
+          job_title, email, phone, billing_address, shipping_address, tin_number,
+          photo_url, gender, birthday, created_at
+        ) VALUES ($1,$2,$3,$4,$13,$14,$15,$5,$6,$8,$9,$7,$10,$11,$12,NOW())
+        RETURNING *;
+      `;
+
+      const insertValues = [
+        companyId,
+        customerId,
+        sanitizedData.customer_type || "Individual",
+        sanitizedData.name || "Unnamed",
+        sanitizedData.email || null,
+        sanitizedData.phone || null,
+        sanitizedData.tin_number || null,
+        sanitizedData.billing_address || null,
+        sanitizedData.shipping_address || null,
+        sanitizedData.photo_url || null,
+        sanitizedData.gender || null,
+        sanitizedData.birthday || null,
+        sanitizedData.contact_name || null,
+        sanitizedData.contact_phone || null,
+        sanitizedData.job_title || null,
+      ];
+
+      result = await client.query(insertQuery, insertValues);
+    }
+
+    await client.query("COMMIT");
+    return result.rows[0];
   } catch (err) {
     await client.query("ROLLBACK");
     throw err;
@@ -228,7 +332,7 @@ async findById(companyId, customerId) {
         cp.birthday
       FROM customers c
       LEFT JOIN customer_profiles cp 
-        ON c.customer_id = cp.customer_pk
+        ON c.company_id = cp.company_id AND c.customer_id = cp.customer_id
       WHERE c.company_id = $1 AND c.customer_id = $2
       `,
       [companyId, customerId]

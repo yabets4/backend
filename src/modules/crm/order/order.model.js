@@ -86,13 +86,23 @@ export const OrderModel = {
 
       // 2. Create the main order record
       const orderQuery = `
-        INSERT INTO orders (company_id, order_id, quote_id, lead_id, status, order_date, delivery_date, total_amount)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO orders (company_id, order_id, quote_id, lead_id, status, order_date, delivery_date, delivery_address, total_amount, notes)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *;
       `;
       const orderValues = [
-        companyId, order_id, data.quote_id, data.lead_id, data.status || 'Pending',
-        data.orderDate, data.delivery_date || null, data.totalAmount || 0
+        companyId,
+        order_id,
+        data.quote_id,
+        data.lead_id,
+        data.status || 'Pending',
+        // support both camelCase and snake_case from the payload
+        data.orderDate,
+        (data.delivery_date ?? data.deliveryDate) || null,
+        (data.delivery_address ?? data.deliveryAddress) ?? null,
+        data.totalAmount || 0,
+        // persist either `notes` or `specialInstructions` from the payload
+        data.notes ?? data.specialInstructions ?? null,
       ];
       const { rows: orderRows } = await client.query(orderQuery, orderValues);
       const newOrder = orderRows[0];
@@ -160,12 +170,7 @@ export const OrderModel = {
     }));
   },
 
-  /**
-   * Fetches a single order by its ID, including its items.
-   * @param {string} companyId - The ID of the company.
-   * @param {string} orderId - The ID of the order.
-   * @returns {Promise<object|null>} The order object or null if not found.
-   */
+
   async findById(companyId, orderId) {
     const query = `
       SELECT o.*, l.name as customer_name
@@ -184,14 +189,6 @@ export const OrderModel = {
     return order;
   },
 
-  /**
-   * Updates an order. For simplicity, this example only updates the status.
-   * A full implementation would handle updating items as well.
-   * @param {string} companyId - The ID of the company.
-   * @param {string} orderId - The ID of the order to update.
-   * @param {object} data - The data to update.
-   * @returns {Promise<object|null>} The updated order object or null if not found.
-   */
   async update(companyId, orderId, data) {
     // Full update with transactional handling of items.
     const client = await pool.connect();
@@ -199,16 +196,35 @@ export const OrderModel = {
       await client.query('BEGIN');
 
       const { status, delivery_date, total_amount, order_date, quote_id } = data;
+      // Helper: convert empty string -> null to avoid invalid date/number input for Postgres
+      const toNullIfEmpty = (v) => (v === '' ? null : v);
+
+      // Only overwrite `notes` when the payload explicitly includes `notes` or `specialInstructions`.
+      const hasNotesInPayload = Object.prototype.hasOwnProperty.call(data, 'notes') || Object.prototype.hasOwnProperty.call(data, 'specialInstructions');
+      const notesParam = hasNotesInPayload ? (data.notes ?? data.specialInstructions ?? null) : null;
+      // Only overwrite `delivery_address` when payload includes it (support camelCase + snake_case)
+      const hasDeliveryAddressInPayload = Object.prototype.hasOwnProperty.call(data, 'delivery_address') || Object.prototype.hasOwnProperty.call(data, 'deliveryAddress');
+      const deliveryAddressParam = hasDeliveryAddressInPayload ? (data.delivery_address ?? data.deliveryAddress ?? null) : null;
+      // Support delivery_date provided as camelCase or snake_case and normalize empty string to null
+      const deliveryDateRaw = (data.delivery_date ?? data.deliveryDate);
+      const deliveryDateParam = toNullIfEmpty(deliveryDateRaw ?? null);
+      // Support total amount provided as camelCase or snake_case and only overwrite when included
+      const hasTotalInPayload = Object.prototype.hasOwnProperty.call(data, 'totalAmount') || Object.prototype.hasOwnProperty.call(data, 'total_amount');
+      const totalAmountRaw = (data.totalAmount ?? data.total_amount);
+      const totalAmountParam = hasTotalInPayload ? (toNullIfEmpty(totalAmountRaw) !== null ? Number(totalAmountRaw) : null) : null;
+
       const { rows } = await client.query(
         `UPDATE orders SET 
            status = COALESCE($3, status), 
            delivery_date = COALESCE($4, delivery_date),
            total_amount = COALESCE($5, total_amount),
            order_date = COALESCE($6, order_date),
+           notes = COALESCE($7, notes),
+           delivery_address = COALESCE($8, delivery_address),
            updated_at = NOW()
          WHERE company_id = $1 AND order_id = $2
          RETURNING *`,
-        [companyId, orderId, status, delivery_date, total_amount, order_date]
+        [companyId, orderId, status, deliveryDateParam, totalAmountParam, order_date, notesParam, deliveryAddressParam]
       );
 
       if (rows.length === 0) {

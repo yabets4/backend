@@ -13,7 +13,6 @@ const QuoteService = {
 
   async list(companyId) {
     if (!companyId) throw new Error("companyId is required");
-    console.log("[Service] Listing quotes for company:", companyId);
     return QuoteModel.findAll(companyId);
   },
 

@@ -34,10 +34,14 @@ export async function createLeadOrCustomer(req, res) {
     const leadData = { ...req.body };
     console.log(leadData);
     
+    // Prefer descriptions sent in the multipart form under
+    // `attachment_descriptions[]` (or `attachment_descriptions`) matching file order.
+    let attachmentDescriptions = req.body.attachment_descriptions || req.body['attachment_descriptions[]'] || [];
+    if (typeof attachmentDescriptions === 'string') attachmentDescriptions = [attachmentDescriptions];
 
-    const attachments = (req.files || []).map((f) => ({
+    const attachments = (req.files || []).map((f, idx) => ({
       file_url: `/uploads/${req.tenantPrefix || "default"}/leads/${f.filename}`,
-      description: f.originalname,
+      description: (attachmentDescriptions && attachmentDescriptions[idx]) ? attachmentDescriptions[idx] : f.originalname,
     }));
 
     const newLead = await LeadsService.createLead(companyID, leadData, attachments);
@@ -70,9 +74,12 @@ export async function createLead(req, res) {
     const leadData = { ...req.body };
 
     // Uploaded files
-    const attachments = (req.files || []).map((f) => ({
+    let attachmentDescriptions = req.body.attachment_descriptions || req.body['attachment_descriptions[]'] || [];
+    if (typeof attachmentDescriptions === 'string') attachmentDescriptions = [attachmentDescriptions];
+
+    const attachments = (req.files || []).map((f, idx) => ({
       file_url: `/uploads/${req.tenantPrefix || "default"}/leads/${f.filename}`,
-      description: f.originalname,
+      description: (attachmentDescriptions && attachmentDescriptions[idx]) ? attachmentDescriptions[idx] : f.originalname,
     }));
 
     const newLead = await LeadsService.create(companyID, leadData, attachments);
@@ -105,9 +112,12 @@ export async function updateLead(req, res) {
     }
 
     // New uploaded files
-    const newAttachments = (req.files || []).map((f) => ({
+    let attachmentDescriptions = leadData.attachment_descriptions || leadData['attachment_descriptions[]'] || [];
+    if (typeof attachmentDescriptions === 'string') attachmentDescriptions = [attachmentDescriptions];
+
+    const newAttachments = (req.files || []).map((f, idx) => ({
       file_url: `/uploads/${req.tenantPrefix || "default"}/leads/${f.filename}`,
-      description: f.originalname,
+      description: (attachmentDescriptions && attachmentDescriptions[idx]) ? attachmentDescriptions[idx] : f.originalname,
     }));
 
     const updated = await LeadsService.update(
@@ -128,9 +138,9 @@ export async function updateLead(req, res) {
 // DELETE lead by lead_id
 export async function deleteLead(req, res) {
   try {
-    const { companyId } = req.auth;
+    const { companyID } = req.auth;
     const { id: leadId } = req.params;
-    const deleted = await LeadsService.delete(companyId, leadId);
+    const deleted = await LeadsService.delete(companyID, leadId);
     if (!deleted) return notFound(res, "Lead not found");
     return ok(res, { message: "Lead deleted" });
   } catch (err) {

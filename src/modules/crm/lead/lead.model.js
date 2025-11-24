@@ -427,13 +427,32 @@ export const LeadsModel = {
         ]
       );
 
-      // Update existing attachments
-      for (const att of existingAttachments) {
-        await client.query(
-          `UPDATE leads_attachments SET description=$1 
-           WHERE company_id=$2 AND lead_id=$3 AND id=$4`,
-          [att.description || null, companyId, leadId, att.id]
-        );
+      // Delete attachments that were removed in the frontend: keep only those provided
+      if (Array.isArray(existingAttachments)) {
+        const keptIds = existingAttachments.map(a => a.id).filter(Boolean);
+
+        if (keptIds.length === 0) {
+          // No existing attachments were kept -> remove all existing attachments for this lead
+          await client.query(
+            `DELETE FROM leads_attachments WHERE company_id=$1 AND lead_id=$2`,
+            [companyId, leadId]
+          );
+        } else {
+          // Delete attachments whose id is NOT in the keptIds list
+          // Build parameter placeholders for the id list
+          const placeholders = keptIds.map((_, i) => `$${i + 3}`).join(',');
+          const sql = `DELETE FROM leads_attachments WHERE company_id=$1 AND lead_id=$2 AND id NOT IN (${placeholders})`;
+          await client.query(sql, [companyId, leadId, ...keptIds]);
+        }
+
+        // Update descriptions for the attachments that remain
+        for (const att of existingAttachments) {
+          await client.query(
+            `UPDATE leads_attachments SET description=$1 
+             WHERE company_id=$2 AND lead_id=$3 AND id=$4`,
+            [att.description || null, companyId, leadId, att.id]
+          );
+        }
       }
 
       // Insert new attachments

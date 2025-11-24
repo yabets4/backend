@@ -91,7 +91,8 @@ export const RawMaterialsModel = {
 
 
   async findById(companyId, rawMaterialId) {
-    const result = await pool.query(
+    // Fetch raw material details
+    const rmResult = await pool.query(
       `
       SELECT 
         rm.company_id,
@@ -103,7 +104,7 @@ export const RawMaterialsModel = {
         rm.cost_price,
         rm.minimum_stock,
         rm.shelf_life,
-  rm.supplier_id,
+        rm.supplier_id,
         rm.created_at,
         rmp.description,
         rmp.specifications,
@@ -117,8 +118,41 @@ export const RawMaterialsModel = {
       `,
       [companyId, rawMaterialId]
     );
-    return result.rows[0];
+
+    const rawMaterial = rmResult.rows[0];
+    if (!rawMaterial) return null;
+
+    // Fetch movement history
+    const mvResult = await pool.query(
+      `
+      SELECT 
+        movement_id,
+        movement_type,
+        quantity,
+        movement_date,
+        source_document,
+        supplier,
+        destination_document,
+        department_or_project,
+        from_location,
+        to_location,
+        adjustment_type,
+        adjustment_reason,
+        notes,
+        responsible_person,
+        created_at
+      FROM raw_material_movements
+      WHERE company_id = $1 AND raw_material_id = $2
+      ORDER BY movement_date DESC, created_at DESC
+      `,
+      [companyId, rawMaterialId]
+    );
+
+    rawMaterial.movements = mvResult.rows; // append movements
+
+    return rawMaterial;
   },
+
 
   async insert(companyId, data) {
     const client = await pool.connect();

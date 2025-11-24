@@ -8,6 +8,7 @@ import auth from '../../middleware/auth.middleware.js';
 import { authenticateJWT } from '../../middleware/jwt.middleware.js';
 import { requestCounter } from '../../middleware/requestCounter.middleware.js';
 import { CheckCompanyStatus } from '../../middleware/checkTierLimit.middleware.js';
+import Maintenance from './maintenance/maintenance.route.js';
 import permission from '../../middleware/permission.middleware.js';
 
 const r = Router();
@@ -22,7 +23,8 @@ r.use('/fixed-assets', Asset);
 r.use('/suppliers', Suppliers);
 //------ Tools & Machinery -------
 r.use('/tools-machinery', ToolsRoutes);
-
+//------ Maintenance -------
+r.use('/maintenance', Maintenance);
 
 
 export default r;
