@@ -1,37 +1,41 @@
-// Store multiple HuggingFace tokens in an array
-const hfTokens = [
-  process.env.HF_TOKEN_1,
-  process.env.HF_TOKEN_2,
-  process.env.HF_TOKEN_3,
+// ai.utils.js
+const HF_TOKENS = [
+  process.env.HF_TOKEN1,
+  process.env.HF_TOKEN2,
+  process.env.HF_TOKEN3,
+  // add more tokens here
 ];
 
-// Utility: pick a random token
 function getRandomToken() {
-  const validTokens = hfTokens.filter(Boolean); // remove undefined
-  if (validTokens.length === 0) {
-    throw new Error("No HuggingFace tokens available");
-  }
-  const randomIndex = Math.floor(Math.random() * validTokens.length);
-  return validTokens[randomIndex];
+  const index = Math.floor(Math.random() * HF_TOKENS.length);
+  return HF_TOKENS[index];
 }
 
-// Query function using built-in fetch
-export async function query(data) {
-  const token = getRandomToken();
+export async function queryPrompt(prompt) {
+  const data = {
+    messages: [
+      { role: "user", content: prompt }
+    ],
+    model: "openai/gpt-oss-120b",
+  };
 
-  const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
+  try {
+    const response = await fetch(
+      "https://router.huggingface.co/v1/chat/completions",
+      {
+        headers: {
+          Authorization: `Bearer ${getRandomToken()}`,
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`HF API Error: ${response.status} - ${text}`);
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error("Error querying the API:", error);
+    return null;
   }
-
-  return response.json();
 }

@@ -13,7 +13,9 @@ const __dirname = path.dirname(__filename);
 
 export default function expressLoader(app) {
 
-  app.use('/uploads', cors({ origin: '*' }), express.static(path.join(__dirname, '../uploads/companyProfiles')));
+  // Serve the entire uploads directory at /uploads so paths like
+  // /uploads/<CompanyName>/tools/... are publicly accessible.
+  app.use('/uploads', cors({ origin: '*' }), express.static(path.join(__dirname, '../uploads')));
 
   // ---- Existing middlewares ----
   app.use(cors(securityConfig.cors));

@@ -16,7 +16,7 @@ export const authenticateJWT = (req, res, next) => {
 
     // Save structured auth info
     req.auth = {
-      user: decoded.sub,          // user's email or identifier
+      user: decoded.sub,          
       roles: decoded.roles || [], // array of roles
       companyID: decoded.company_id, // user's company_id
       gps: decoded.gps // user's gps

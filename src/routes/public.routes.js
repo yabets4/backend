@@ -12,6 +12,9 @@ r.post('/auth/login', async (req, res) => {
     return badRequest(res, 'email, password and gps required');
   }
 
+  console.log("Reached DB query");
+
+
   try {
     // Join user_profiles -> users to get company_id and user_id
     const result = await pool.query(
@@ -31,6 +34,8 @@ r.post('/auth/login', async (req, res) => {
       `,
       [email]
     );
+    console.log("DB query finished");
+    console.log("GPS:", gps);
 
     const user = result.rows[0];
     if (!user) return unauthorized(res, 'User not found');
