@@ -14,4 +14,3 @@ r.put('/:id', AttendanceController.update);
 r.delete('/:id', AttendanceController.delete);
 
 export default r;
-

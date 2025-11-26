@@ -48,6 +48,8 @@ CREATE TABLE employee_employment_details (
             ON DELETE CASCADE
 );
 
+
+contract_type
 -- ==========================================
 -- 3. Full-Time / Apparent Employee Details
 -- ==========================================

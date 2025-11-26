@@ -276,7 +276,7 @@ async findById(companyId, employeeId) {
   return employee;
 }
 ,
-
+//contract_type
   // ✅ GET/UPSERT Leave Balances for an employee
   async getLeaveBalances(companyId, employeeId) {
     const { rows } = await pool.query(
