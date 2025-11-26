@@ -10,10 +10,13 @@ const pool = new Pool({
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
+  ssl: {
+    rejectUnauthorized: false, // required for Neon
+  },
 });
+
 pool.on('error', (err) => {
   console.error("PG POOL ERROR:", err);
 });
-
 
 export default pool;   // ✅ actual Pool instance
