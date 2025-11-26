@@ -44,6 +44,21 @@ console.log('Body:', req.body);
     }
   }
 
+  // PATCH /employees/:id/status
+  static async setStatus(req, res, next) {
+    try {
+      const companyId = req.auth.companyID;
+      const employeeId = req.params.id;
+      const { status } = req.body;
+      if (!status) return res.status(400).json({ success: false, message: 'Status is required' });
+      const updated = await service.setEmployeeStatus(companyId, employeeId, status);
+      if (!updated) return notFound(res, 'Employee not found');
+      return ok(res, updated);
+    } catch (e) {
+      next(e);
+    }
+  }
+
   // POST /employees/:id/leave-balances
   static async setLeaveBalances(req, res, next) {
     try {

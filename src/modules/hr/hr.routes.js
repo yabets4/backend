@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import EmployeeController from './employee/employee.routes.js';
+import selfRoutes from './self/self.route.js';
 import leaveRequestRoutes from './Leave Request/leaveRequest.routes.js';
 import AssignedToolController from './assigned Tool/assignedTool.controller.js';
 import Attendance from "./attendance/attendance.routes.js"
@@ -14,6 +15,8 @@ r.use(auth(true), authenticateJWT);
 
 r.use('/employee', EmployeeController);
 r.use('/attendance', Attendance)
+// current user profile (self)
+r.use('/self', selfRoutes);
 
 // --- attendance ---
 

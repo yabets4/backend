@@ -460,10 +460,43 @@ async findById(companyId, employeeId) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
+      // Remove rows from tables that reference the employment detail id first
+      await client.query(
+        `DELETE FROM employee_part_time_schedule WHERE employment_detail_id IN (
+            SELECT id FROM employee_employment_details WHERE company_id = $1 AND employee_id = $2
+         )`,
+        [companyId, employeeId]
+      );
+
+      await client.query(
+        `DELETE FROM employee_part_time_details WHERE employment_detail_id IN (
+            SELECT id FROM employee_employment_details WHERE company_id = $1 AND employee_id = $2
+         )`,
+        [companyId, employeeId]
+      );
+
+      await client.query(
+        `DELETE FROM employee_full_time_details WHERE employment_detail_id IN (
+            SELECT id FROM employee_employment_details WHERE company_id = $1 AND employee_id = $2
+         )`,
+        [companyId, employeeId]
+      );
+
+      await client.query(
+        `DELETE FROM employee_contractor_details WHERE employment_detail_id IN (
+            SELECT id FROM employee_employment_details WHERE company_id = $1 AND employee_id = $2
+         )`,
+        [companyId, employeeId]
+      );
+
+      // Delete employment details
+      await client.query('DELETE FROM employee_employment_details WHERE company_id = $1 AND employee_id = $2', [companyId, employeeId]);
+
+      // Delete other related tables that use company_id + employee_id
       await client.query('DELETE FROM employee_emergency_contacts WHERE company_id = $1 AND employee_id = $2', [companyId, employeeId]);
-      await client.query('DELETE FROM employee_skills WHERE company_id = $1 AND employee_id = $2', [companyId, employeeId]);
-      await client.query('DELETE FROM employee_certifications WHERE company_id = $1 AND employee_id = $2', [companyId, employeeId]);
-      await client.query('DELETE FROM employee_payroll WHERE company_id = $1 AND employee_id = $2', [companyId, employeeId]);
+      await client.query('DELETE FROM employee_skills_certifications WHERE company_id = $1 AND employee_id = $2', [companyId, employeeId]);
+      await client.query('DELETE FROM employee_leave_balances WHERE company_id = $1 AND employee_id = $2', [companyId, employeeId]);
+
       const { rowCount } = await client.query('DELETE FROM employees WHERE company_id = $1 AND employee_id = $2', [companyId, employeeId]);
       await client.query('COMMIT');
       return rowCount > 0;
@@ -473,6 +506,20 @@ async findById(companyId, employeeId) {
       throw new Error('Could not delete employee');
     } finally {
       client.release();
+    }
+  },
+
+  // Update only the status field for an employee
+  async updateStatus(companyId, employeeId, status) {
+    try {
+      const { rows } = await pool.query(
+        `UPDATE employees SET status = $3, updated_at = NOW() WHERE company_id = $1 AND employee_id = $2 RETURNING *`,
+        [companyId, employeeId, status]
+      );
+      return rows[0] || null;
+    } catch (err) {
+      console.error('Error updating employee status:', err);
+      throw err;
     }
   }
 };

@@ -15,6 +15,7 @@ const employeeUploads = uploadEmployeePhoto.fields([
 r.get('/',  EmployeeController.getAll);
 r.get('/:id',  EmployeeController.getById);
 r.get('/:id/leave-balances', EmployeeController.getLeaveBalances);
+r.patch('/:id/status', EmployeeController.setStatus);
 r.post('/',  uploadEmployeePhoto.any(), EmployeeController.create);
 r.put('/:id',  employeeUploads, EmployeeController.update);
 r.delete('/:id', EmployeeController.delete);

@@ -92,4 +92,15 @@ async createEmployee(companyId, data) {
       throw err;
     }
   }
+
+  // Set employee status (active/inactive)
+  async setEmployeeStatus(companyId, employeeId, status) {
+    try {
+      const updated = await EmployeeModel.updateStatus(companyId, employeeId, status);
+      return updated;
+    } catch (err) {
+      console.error('Service error: setEmployeeStatus', err);
+      throw new Error('Could not update employee status');
+    }
+  }
 }
