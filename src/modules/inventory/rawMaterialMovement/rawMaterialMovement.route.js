@@ -6,6 +6,7 @@ import {
   getMovementsForMaterial,
   getLookupData,
   recordMovement,
+  updateMovement,
   deleteMovement
 } from './rawMaterialMovement.controller.js';
 
@@ -14,11 +15,13 @@ const router = express.Router();
 // Get all movements
 router.get('/', listMovements);
 
-// Record a new movement
+
 router.post('/', recordMovement);
 
-// Get lookup data (raw materials, suppliers, locations)
-// Place this route before dynamic param routes to avoid being captured by :movementId
+// Update a movement by ID
+router.put('/:movementId', updateMovement);
+
+
 router.get('/lookups', getLookupData);
 
 // Get a specific movement by its ID

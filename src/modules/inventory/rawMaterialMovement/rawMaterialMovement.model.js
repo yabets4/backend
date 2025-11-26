@@ -31,8 +31,7 @@ export const RawMaterialMovementModel = {
     return result.rows;
   },
 
-  // Fetch lookup/reference data used by raw material movement UI/forms
-  // Returns an object containing arrays: rawMaterials, suppliers, locations
+  
   async getLookupData(companyId) {
     // Run queries in parallel for performance
     const rawMaterialsPromise = pool.query(
@@ -107,6 +106,66 @@ export const RawMaterialMovementModel = {
         responsiblePerson || null
       ]
     );
+    return result.rows[0];
+  },
+
+  async update(companyId, movementId, data) {
+    const {
+      rawMaterialId,
+      movementType,
+      quantity,
+      movementDate,
+      sourceDocument,
+      supplier,
+      destinationDocument,
+      departmentOrProject,
+      fromLocation,
+      toLocation,
+      adjustmentType,
+      adjustmentReason,
+      notes,
+      responsiblePerson
+    } = data;
+
+    const result = await pool.query(
+      `UPDATE raw_material_movements SET
+        raw_material_id = $2,
+        movement_type = $3,
+        quantity = $4,
+        movement_date = $5,
+        source_document = $6,
+        supplier = $7,
+        destination_document = $8,
+        department_or_project = $9,
+        from_location = $10,
+        to_location = $11,
+        adjustment_type = $12,
+        adjustment_reason = $13,
+        notes = $14,
+        responsible_person = $15,
+        updated_at = NOW()
+       WHERE company_id = $1 AND movement_id = $16
+       RETURNING *`,
+      [
+        companyId,
+        rawMaterialId,
+        movementType,
+        quantity,
+        movementDate,
+        sourceDocument || null,
+        supplier || null,
+        destinationDocument || null,
+        departmentOrProject || null,
+        fromLocation || null,
+        toLocation || null,
+        adjustmentType || null,
+        adjustmentReason || null,
+        notes || null,
+        responsiblePerson || null,
+        movementId
+      ]
+    );
+
     return result.rows[0];
   },
 

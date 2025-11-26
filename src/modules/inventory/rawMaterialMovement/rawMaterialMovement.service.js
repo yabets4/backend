@@ -34,4 +34,16 @@ export const RawMaterialMovementService = {
     }
     return deletedMovement;
   }
+  ,
+
+  async updateMovement(companyId, movementId, data) {
+    if (!data || Object.keys(data).length === 0) {
+      throw new Error('No data provided for update.');
+    }
+    const updated = await RawMaterialMovementModel.update(companyId, movementId, data);
+    if (!updated) {
+      throw new Error('Movement not found');
+    }
+    return updated;
+  }
 };

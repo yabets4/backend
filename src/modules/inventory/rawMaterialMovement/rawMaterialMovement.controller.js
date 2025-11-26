@@ -66,3 +66,17 @@ export const getLookupData = async (req, res, next) => {
     next(error);
   }
 };
+
+export const updateMovement = async (req, res, next) => {
+  try {
+    const { companyID } = req.auth;
+    const { movementId } = req.params;
+    const updated = await RawMaterialMovementService.updateMovement(companyID, movementId, req.body);
+    if (!updated) {
+      return res.status(404).json({ message: 'Movement not found' });
+    }
+    res.json(updated);
+  } catch (error) {
+    next(error);
+  }
+};

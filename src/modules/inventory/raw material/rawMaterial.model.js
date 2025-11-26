@@ -9,6 +9,7 @@ export const RawMaterialsModel = {
         rm.company_id,
         rm.raw_material_id,
         rm.name,
+        rm.location,
         rm.category_id,
         rm.current_stock,
         rm.uom,
@@ -97,6 +98,7 @@ export const RawMaterialsModel = {
       SELECT 
         rm.company_id,
         rm.raw_material_id,
+          rm.location,
         rm.current_stock,
         rm.name,
         rm.category_id,
@@ -185,9 +187,9 @@ export const RawMaterialsModel = {
           data.uom,
           data.cost_price,
           data.minimum_stock,
-          data.shelf_life || null,
-          data.supplier_id,
-          data.location_id || null,
+            data.shelf_life || null,
+            data.supplier_id,
+            data.location || null,
           data.current_stock || 0
         ]
       );
@@ -233,8 +235,8 @@ export const RawMaterialsModel = {
           minimum_stock = $5,
           shelf_life = $6,
           supplier_id = $7,
-          location_id = $8
-        WHERE company_id = $8 AND raw_material_id = $9`,
+          location = $8
+        WHERE company_id = $9 AND raw_material_id = $10`,
         [
           data.name,
           data.category_id,
@@ -243,7 +245,7 @@ export const RawMaterialsModel = {
           data.minimum_stock,
           data.shelf_life,
           data.supplier_id,
-          data.location_id || null,
+          data.location || null,
           companyId,
           rawMaterialId
         ]
