@@ -425,22 +425,52 @@ async findById(companyId, employeeId) {
 
       // Clear and re-insert skills & certifications
       await client.query('DELETE FROM employee_skills_certifications WHERE company_id = $1 AND employee_id = $2', [companyId, employeeId]);
-      if (Array.isArray(data.skills)) {
-        for (const skill of data.skills) {
-          await client.query(
-            `INSERT INTO employee_skills_certifications (company_id, employee_id, skill_name)
-             VALUES ($1, $2, $3)`,
-            [companyId, employeeId, skill]
-          );
-        }
+      // Support two payload shapes:
+      // - frontend may send `skills_certifications` combined JSON (from FormData)
+      // - or separate `skills` array and `certifications` array
+      let skillsCertsPayload = data.skills_certifications;
+      if (typeof skillsCertsPayload === 'string') {
+        try { skillsCertsPayload = JSON.parse(skillsCertsPayload); } catch (e) { skillsCertsPayload = null; }
       }
-      if (Array.isArray(data.certifications)) {
-        for (const cert of data.certifications) {
-          await client.query(
-            `INSERT INTO employee_skills_certifications (company_id, employee_id, certification_name, issued_by, expiry_date, attachment)
-             VALUES ($1, $2, $3, $4, $5, $6)`,
-            [companyId, employeeId, cert.name, cert.issuedBy || null, cert.expiryDate || null, cert.attachment || null]
-          );
+
+      if (Array.isArray(skillsCertsPayload) && skillsCertsPayload.length) {
+        for (const sc of skillsCertsPayload) {
+          // If payload row is a skill only
+          if (sc.skill_name) {
+            await client.query(
+              `INSERT INTO employee_skills_certifications (company_id, employee_id, skill_name)
+               VALUES ($1, $2, $3)`,
+              [companyId, employeeId, sc.skill_name]
+            );
+          }
+          // If payload row contains certification info
+          if (sc.certification_name) {
+            await client.query(
+              `INSERT INTO employee_skills_certifications (company_id, employee_id, certification_name, issued_by, expiry_date, attachment)
+               VALUES ($1, $2, $3, $4, $5, $6)`,
+              [companyId, employeeId, sc.certification_name || null, sc.issued_by || sc.issuedBy || null, sc.expiry_date || sc.expiryDate || null, sc.attachment || null]
+            );
+          }
+        }
+      } else {
+        // Fallback: separate arrays
+        if (Array.isArray(data.skills)) {
+          for (const skill of data.skills) {
+            await client.query(
+              `INSERT INTO employee_skills_certifications (company_id, employee_id, skill_name)
+               VALUES ($1, $2, $3)`,
+              [companyId, employeeId, skill]
+            );
+          }
+        }
+        if (Array.isArray(data.certifications)) {
+          for (const cert of data.certifications) {
+            await client.query(
+              `INSERT INTO employee_skills_certifications (company_id, employee_id, certification_name, issued_by, expiry_date, attachment)
+               VALUES ($1, $2, $3, $4, $5, $6)`,
+              [companyId, employeeId, cert.name || cert.certification_name || null, cert.issuedBy || cert.issued_by || null, cert.expiryDate || cert.expiry_date || null, cert.attachment || null]
+            );
+          }
         }
       }
 
