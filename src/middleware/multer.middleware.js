@@ -141,3 +141,17 @@ const toolsStorage = multer.diskStorage({
 });
 
 export const uploadToolImage = multer({ storage: toolsStorage });
+
+// ------------------------
+// AP INVOICE ATTACHMENTS
+const apInvoiceStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const dir = await resolveCompanyFolder(req, 'apInvoices');
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+
+export const uploadInvoiceAttachments = multer({ storage: apInvoiceStorage });
