@@ -8,6 +8,7 @@ import ShiftController from './shift/shift.controller.js';
 import auth from '../../middleware/auth.middleware.js';
 import { authenticateJWT } from '../../middleware/jwt.middleware.js';
 import permission from '../../middleware/permission.middleware.js';
+import auditRoutes from './AuditLog/auditLog.route.js';
 
 const r = Router();
 r.use(auth(true), authenticateJWT);
@@ -17,6 +18,9 @@ r.use('/employee', EmployeeController);
 r.use('/attendance', Attendance)
 // current user profile (self)
 r.use('/self', selfRoutes);
+
+// Audit logs
+r.use('/audit', auditRoutes);
 
 // --- attendance ---
 
