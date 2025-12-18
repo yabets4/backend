@@ -1,19 +1,23 @@
 import { Router } from 'express';
-import controller from './product.controller.js';
+
 import auth from '../../middleware/auth.middleware.js';
-import tenant from '../../middleware/tenant.middleware.js';
-import validate from '../../middleware/validate.middleware.js';
-import permission from '../../middleware/permission.middleware.js';
-import { createProductSchema, updateProductSchema } from './product.validation.js';
+import { authenticateJWT } from '../../middleware/jwt.middleware.js';
+import { requestCounter } from '../../middleware/requestCounter.middleware.js';
+import { CheckCompanyStatus } from '../../middleware/checkTierLimit.middleware.js';
 
-const router = Router();
-router.use(auth(true), tenant);
+import ProductRoutes from './product/product.routes.js';
+import DesignRoutes from './design/design.routes.js';
+import BOMRoutes from './bom/bom.routes.js';
 
-router.get('/', permission('product_read'), controller.list);
-router.get('/:id', permission('product_read'), controller.get);
-router.post('/', permission('product_write'), validate(createProductSchema), controller.create);
-router.put('/:id', permission('product_write'), validate(updateProductSchema), controller.update);
-router.patch('/:id', permission('product_write'), validate(updateProductSchema), controller.update);
-router.delete('/:id', permission('product_delete'), controller.remove);
 
-export default router;
+
+const r = Router();
+r.use(auth(false), authenticateJWT, CheckCompanyStatus, requestCounter);
+//------ Product Routes -------
+r.use('/products', ProductRoutes);
+//------ Design Routes -------
+r.use('/designs', DesignRoutes);
+//------ BOM Routes -------
+r.use('/boms', BOMRoutes);
+
+export default r;

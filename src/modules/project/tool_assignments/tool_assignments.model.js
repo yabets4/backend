@@ -2,6 +2,30 @@ import pool from '../../../loaders/db.loader.js';
 
 const ToolAssignmentModel = {
     findAll: async (company_id) => {
+        // Determine which columns exist in project_tool_assignments to avoid referencing non-existent columns
+        const colCheckQuery = `
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'project_tool_assignments'
+              AND column_name IN ('tool_id', 'tool_type_id', 'status')
+        `;
+        const { rows: colRows } = await pool.query(colCheckQuery);
+        const cols = colRows.map(r => r.column_name);
+
+        let joinCondition = '';
+        if (cols.includes('tool_id')) {
+            joinCondition = 'tm.id = pta.tool_id';
+        } else if (cols.includes('tool_type_id')) {
+            // tool_type_id stores a type string that matches tools_machinery.type
+            joinCondition = "tm.type = pta.tool_type_id";
+        } else {
+            // fallback: no matching column — keep join false so we still list tools
+            joinCondition = 'FALSE';
+        }
+
+        const hasStatus = cols.includes('status');
+        const statusCondition = hasStatus ? " AND pta.status IN ('Assigned', 'In Use')" : '';
+
         const query = `
             SELECT 
                 tm.id,
@@ -13,15 +37,16 @@ const ToolAssignmentModel = {
                 pta.project_id,
                 p.name as project_name,
                 pta.assigned_employee_id,
-                e.first_name || ' ' || e.last_name as assigned_employee_name,
+                e.name as assigned_employee_name,
                 pta.end_date as return_due
             FROM tools_machinery tm
-            LEFT JOIN project_tool_assignments pta ON tm.id = pta.tool_id AND pta.status IN ('Assigned', 'In Use')
+            LEFT JOIN project_tool_assignments pta ON ${joinCondition}${statusCondition}
             LEFT JOIN projects p ON pta.project_id = p.project_id AND pta.company_id = p.company_id
             LEFT JOIN employees e ON pta.assigned_employee_id = e.employee_id AND pta.company_id = e.company_id
             WHERE tm.company_id = $1
             ORDER BY tm.name;
         `;
+
         const { rows } = await pool.query(query, [company_id]);
         return rows;
     },
