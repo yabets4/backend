@@ -9,6 +9,9 @@ import auth from '../../middleware/auth.middleware.js';
 import { authenticateJWT } from '../../middleware/jwt.middleware.js';
 import permission from '../../middleware/permission.middleware.js';
 import auditRoutes from './AuditLog/auditLog.route.js';
+import onboardingRoutes from './onboarding/onboarding.routes.js';
+import offboardingRoutes from './offboarding/offboarding.routes.js';
+import performanceRoutes from './performance/performance.routes.js';
 
 const r = Router();
 r.use(auth(true), authenticateJWT);
@@ -21,6 +24,13 @@ r.use('/self', selfRoutes);
 
 // Audit logs
 r.use('/audit', auditRoutes);
+
+// Onboarding / Offboarding
+r.use('/onboarding', onboardingRoutes);
+r.use('/offboarding', offboardingRoutes);
+
+// Performance management
+r.use('/performance', performanceRoutes);
 
 // --- attendance ---
 

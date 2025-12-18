@@ -78,6 +78,10 @@ export const RawMaterialsModel = {
     `,
     [companyId]
   );
+
+  const UmosResult = await pool.query(
+    `
+    SELECT  * FROM units_of_measure WHERE company_id=$1 ORDER BY name ASC`, [companyId]);
   
   
 
@@ -86,6 +90,7 @@ export const RawMaterialsModel = {
     locations: locationsResult.rows,
     categories: categoriesResult.rows,
     suppliers: suppliersResult.rows,
+    uoms: UmosResult.rows
   };
 },
 

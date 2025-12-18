@@ -1,4 +1,6 @@
 import ToolsService from './tools.service.js';
+import LocationsModel from '../../crm/locations/locations.model.js';
+import { EmployeeModel } from '../../hr/employee/employee.model.js';
 
 const ToolsController = {
     create: async (req, res) => {
@@ -86,6 +88,21 @@ const ToolsController = {
         } catch (error) {
             console.error('Error deleting tool:', error);
             res.status(500).json({ message: 'Internal server error' });
+        }
+    }
+,
+
+    // Return lookup data needed for tools UI: locations and employees for the company
+    getData: async (req, res) => {
+        try {
+            const { companyID } = req.auth;
+            const locationsModel = new LocationsModel();
+            const locations = await locationsModel.getLocationsByCompany(companyID);
+            const employees = await EmployeeModel.findAll(companyID);
+            return res.status(200).json({ locations, employees });
+        } catch (error) {
+            console.error('Error fetching lookup data for tools:', error);
+            return res.status(500).json({ message: 'Internal server error' });
         }
     }
 };

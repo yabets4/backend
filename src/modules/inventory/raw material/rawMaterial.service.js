@@ -15,7 +15,7 @@ export const RawMaterialsService = {
 
   async create(companyId, data) {
     // require location_id (id of location) instead of free-form location name
-    const requiredFields = ["name","category_id","uom","cost_price","minimum_stock","supplier_id","location_id"];
+    const requiredFields = ["name","category_id","uom","cost_price","minimum_stock","supplier_id"];
     const missing = requiredFields.filter(f => !data[f]);
     if (missing.length) throw new Error(`Missing required fields: ${missing.join(", ")}`);
     return await RawMaterialsModel.insert(companyId, data);

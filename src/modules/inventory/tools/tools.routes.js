@@ -6,6 +6,7 @@ const router = Router();
 
 router.post('/', uploadToolImage.single('image'), ToolsController.create);
 router.get('/', ToolsController.getAll);
+router.get('/lookup', ToolsController.getData);
 router.get('/:id', ToolsController.getById);
 router.put('/:id', uploadToolImage.single('image'), ToolsController.update);
 router.delete('/:id', ToolsController.delete);

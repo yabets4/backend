@@ -10,6 +10,9 @@ import { requestCounter } from '../../middleware/requestCounter.middleware.js';
 import { CheckCompanyStatus } from '../../middleware/checkTierLimit.middleware.js';
 import Maintenance from './maintenance/maintenance.route.js';
 import permission from '../../middleware/permission.middleware.js';
+import Catagories from './Categories/main.route.js';
+
+
 
 const r = Router();
 r.use(auth(false), authenticateJWT, CheckCompanyStatus, requestCounter);
@@ -23,6 +26,7 @@ r.use('/fixed-assets', Asset);
 r.use('/suppliers', Suppliers);
 //------ Tools & Machinery -------
 r.use('/tools-machinery', ToolsRoutes);
+r.use("/categories", Catagories);
 //------ Maintenance -------
 r.use('/maintenance', Maintenance);
 

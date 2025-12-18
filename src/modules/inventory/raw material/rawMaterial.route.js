@@ -9,8 +9,11 @@ import {
   getLocation
 } from "./rawMaterial.controller.js";
 import { uploadRawMaterialImage } from "../../../middleware/multer.middleware.js";
+import Catagories from '../Categories/Categories.route.js';
 
 const r = Router();
+
+r.use("/categories", Catagories);
 
 r.get("/", getRawMaterials);
 r.get("/location/", getLocation);

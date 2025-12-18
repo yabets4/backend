@@ -142,8 +142,7 @@ export const RawMaterialMovementModel = {
         adjustment_type = $12,
         adjustment_reason = $13,
         notes = $14,
-        responsible_person = $15,
-        updated_at = NOW()
+        responsible_person = $15
        WHERE company_id = $1 AND movement_id = $16
        RETURNING *`,
       [
