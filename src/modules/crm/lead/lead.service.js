@@ -1,5 +1,6 @@
 // services/leads.service.js
 import { LeadsModel } from "./lead.model.js";
+import { ensureEmailNotRegistered } from "../emailChecker.js";
 
 export const LeadsService = {
   // List all leads with attachments
@@ -34,6 +35,8 @@ export const LeadsService = {
     }
 
     try {
+      // Prevent creation if email already exists in customers or leads
+      if (data.email) await ensureEmailNotRegistered(companyId, data.email);
       // Call the model function that handles lead/customer logic
       const newLead = await LeadsModel.createLeadOrCustomer(companyId, data, attachments);
 

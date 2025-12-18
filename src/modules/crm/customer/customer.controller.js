@@ -79,3 +79,19 @@ export async function deleteCustomer(req, res) {
     return badRequest(res, err.message);
   }
 }
+
+// Convert a lead to a customer
+export async function convertLeadToCustomer(req, res) {
+  try {
+    const { companyID } = req.auth;
+    const { leadId } = req.params;
+    const newCustomer = await CustomersService.convertLeadToCustomer(companyID, leadId);
+    return ok(res, newCustomer);
+  } catch (err) {
+    if (err.code === "ALREADY_EXISTS") {
+      const suffix = err.matchedOn ? ` via ${err.matchedOn}` : '';
+      return badRequest(res, `Customer already exists: ${err.existingCustomerId}${suffix}`);
+    }
+    return badRequest(res, err.message);
+  }
+}
