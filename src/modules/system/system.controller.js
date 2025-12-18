@@ -1,42 +1,48 @@
 import * as srv from './rbac.service.js';
-import { ok } from '../../utils/apiResponse.js';
+import { ok, badRequest, unauthorized } from '../../utils/apiResponse.js';
 
 export default {
   // --- USERS ---
   getAllUsers: async (req, res, next) => {
     try {
       const { limit = 50, offset = 0 } = req.query;
-      const users = await srv.getAllUsers(req.tenantPrefix, limit, offset);
-      console.log(users);
-      
+      const companyId = req.auth?.companyID || null;
+      const users = await srv.getAllUsers(limit, offset, companyId);
       return ok(res, users);
     } catch (e) { next(e); }
   },
 
   getUserById: async (req, res, next) => {
     try {
-      const user = await srv.getUserById(req.tenantPrefix, req.params.userId);
+      const companyId = req.auth?.companyID || null;
+      const user = await srv.getUserById(req.params.userId, companyId);
       return ok(res, user);
     } catch (e) { next(e); }
   },
 
   createUser: async (req, res, next) => {
     try {
-      const created = await srv.createUser(req.tenantPrefix, req.body);
+      // If authenticated, prefer company from token when not provided in body
+      const payload = { ...(req.body || {}) };
+      const companyId = req.auth?.companyID || null;
+      const created = await srv.createUser(payload, companyId);
       return ok(res, created);
     } catch (e) { next(e); }
   },
 
   updateUser: async (req, res, next) => {
     try {
-      const updated = await srv.updateUser(req.tenantPrefix, req.params.userId, req.body);
+      const payload = { ...(req.body || {}) };
+      const companyId = req.auth?.companyID || null;
+      const updated = await srv.updateUser(req.params.userId, payload, companyId);
       return ok(res, updated);
     } catch (e) { next(e); }
   },
 
   removeUser: async (req, res, next) => {
     try {
-      await srv.removeUser(req.tenantPrefix, req.params.userId);
+      const companyId = req.auth?.companyID || null;
+      await srv.removeUser(req.params.userId, companyId);
       return ok(res, null); // or return ok(res, { message: "User removed" })
     } catch (e) { next(e); }
   },
@@ -45,22 +51,26 @@ export default {
   // --- ROLES ---
   getAllRoles: async (req, res, next) => {
     try {
-      const roles = await srv.getAllRoles(req.tenantPrefix);
+      const { limit = 50, offset = 0 } = req.query;
+      const companyId = req.auth?.companyID || null;
+      const roles = await srv.getAllRoles(limit, offset, companyId);
       return ok(res, roles);
     } catch (e) { next(e); }
   },
 
   getRoleById: async (req, res, next) => {
     try {
-      const role = await srv.getRoleById(req.tenantPrefix, req.params.roleId);
+      const companyId = req.auth?.companyID || null;
+      const role = await srv.getRoleById(req.params.roleId, companyId);
       return ok(res, role);
     } catch (e) { next(e); }
   },
 
-createRole: async (req, res, next) => {
+  createRole: async (req, res, next) => {
   try {
     const { name, permissions } = req.body;
-    const created = await srv.createRole(req.tenantPrefix, name, permissions);
+    const companyId = req.auth?.companyID || null;
+    const created = await srv.createRole(name, permissions, companyId);
     return ok(res, created);
   } catch (e) {
     next(e);
@@ -71,7 +81,8 @@ createRole: async (req, res, next) => {
 updateRole: async (req, res, next) => {
   try {
     const { name, permissions } = req.body;
-    const updated = await srv.updateRole(req.tenantPrefix, req.params.roleId, name, permissions);
+    const companyId = req.auth?.companyID || null;
+    const updated = await srv.updateRole(req.params.roleId, name, permissions, companyId);
     return ok(res, updated);
   } catch (e) {
     next(e);
@@ -80,9 +91,9 @@ updateRole: async (req, res, next) => {
 
     deleteRole: async (req, res, next) => {
     try {
-      const prefix = req.tenantPrefix;
       const roleId = req.params.roleId;
-      await srv.deleteRole(prefix, roleId);
+      const companyId = req.auth?.companyID || null;
+      await srv.deleteRole(roleId, companyId);
       return ok(res, null); // role removed
     } catch (e) {
       next(e);
@@ -92,35 +103,41 @@ updateRole: async (req, res, next) => {
   // --- PERMISSIONS ---
   getAllPermissions: async (req, res, next) => {
     try {
-      const permissions = await srv.getAllPermissions(req.tenantPrefix);
+      const { limit = 50, offset = 0 } = req.query;
+      const companyId = req.auth?.companyID || null;
+      const permissions = await srv.getAllPermissions(limit, offset, companyId);
       return ok(res, permissions);
     } catch (e) { next(e); }
   },
 
   getPermissionById: async (req, res, next) => {
     try {
-      const perm = await srv.getPermissionById(req.tenantPrefix, req.params.permissionId);
+      const companyId = req.auth?.companyID || null;
+      const perm = await srv.getPermissionById(req.params.permissionId, companyId);
       return ok(res, perm);
     } catch (e) { next(e); }
   },
 
   createPermission: async (req, res, next) => {
     try {
-      const created = await srv.createPermission(req.tenantPrefix, req.body);
+      const companyId = req.auth?.companyID || null;
+      const created = await srv.createPermission(req.body, companyId);
       return ok(res, created);
     } catch (e) { next(e); }
   },
 
   updatePermission: async (req, res, next) => {
     try {
-      const updated = await srv.updatePermission(req.tenantPrefix, req.params.permissionId, req.body);
+      const companyId = req.auth?.companyID || null;
+      const updated = await srv.updatePermission(req.params.permissionId, req.body, companyId);
       return ok(res, updated);
     } catch (e) { next(e); }
   },
 
   removePermission: async (req, res, next) => {
     try {
-      await srv.removePermission(req.tenantPrefix, req.params.permissionId);
+      const companyId = req.auth?.companyID || null;
+      await srv.removePermission(req.params.permissionId, companyId);
       return ok(res, null); // or ok(res, { message: "Permission removed" })
     } catch (e) { next(e); }
   },
@@ -133,7 +150,8 @@ updateRole: async (req, res, next) => {
       if (!Array.isArray(roles)) return badRequest(res, 'Roles must be an array');
 
       // Service converts IDs → names and updates RBAC
-      const updatedRbac = await srv.addOrUpdateRbac(req.tenantPrefix, userId, roles);
+      const companyId = req.auth?.companyID || null;
+      const updatedRbac = await srv.addOrUpdateRbac(userId, roles, companyId);
 
       return ok(res, updatedRbac);
     } catch (e) {
@@ -146,7 +164,8 @@ updateRole: async (req, res, next) => {
       const userId = req.params.userId;
       if (!userId) return badRequest(res, 'User ID is required');
 
-      const record = await srv.getRbacByUserId(req.tenantPrefix, userId);
+      const companyId = req.auth?.companyID || null;
+      const record = await srv.getRbacByUserId(userId, companyId);
       return ok(res, record || null);
     } catch (e) {
       next(e);

@@ -1,14 +1,13 @@
 import { Router } from 'express';
 import ctrl from './system.controller.js';
 import auth from '../../middleware/auth.middleware.js';
-import tenant from '../../middleware/tenant.middleware.js';
+import { authenticateJWT } from '../../middleware/jwt.middleware.js';
 
 const r = Router();
 
-r.use(auth(true));
-r.use(tenant);
+r.use(auth(true), authenticateJWT);
 
-// Roles
+
 r.get('/role', ctrl.getAllRoles);
 r.get('/role/:roleId', ctrl.getRoleById);
 r.post('/role', ctrl.createRole);

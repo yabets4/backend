@@ -4,75 +4,82 @@ import RbacModel from './rbac.model.js';
 const rbacModel = new RbacModel();
 
 // --- Roles ---
-export const getAllRoles = async (prefix, limit = 50, offset = 0) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.findRoles(prefix, { limit, offset });
+export const getAllRoles = async (limit = 50, offset = 0, companyId = null) => {
+  return rbacModel.findRoles({ limit, offset }, companyId);
 };
 
-export const getRoleById = async (prefix, roleId) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.findRoleById(prefix, roleId);
+export const getRoleById = async (roleId, companyId = null) => {
+  return rbacModel.findRoleById(roleId, companyId);
 };
 
-export const createRole = async (prefix, name, permissions = []) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.createRole(prefix, { name, permissions });
+export const createRole = async (name, permissions = [], companyId = null) => {
+  return rbacModel.createRole({ name, permissions }, companyId);
 };
 
-
-export const updateRole = async (prefix, roleId, name, permissions = []) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.updateRole(prefix, roleId, { name, permissions });
+export const updateRole = async (roleId, name, permissions = [], companyId = null) => {
+  return rbacModel.updateRole(roleId, { name, permissions }, companyId);
 };
 
-export const deleteRole = async (prefix, roleId) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.removeRole(prefix, roleId);
+export const deleteRole = async (roleId, companyId = null) => {
+  return rbacModel.removeRole(roleId, companyId);
 };
 
 // --- RBAC (user → role assignments) ---
-export const getRbacByUserId = async (prefix, userId) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.findRbacByUserId(prefix, userId);
+export const getRbacByUserId = async (userId, companyId = null) => {
+  return rbacModel.findRbacByUserId(userId, companyId);
 };
 
-export const addOrUpdateRbac = async (prefix, userId, roleIds = []) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-
+export const addOrUpdateRbac = async (userId, roleIds = [], companyId = null) => {
   // Convert role IDs → role names using the internal RbacModel
   const roleNames = [];
   for (const id of roleIds) {
-    const role = await rbacModel.findRoleById(prefix, id);
+    const role = await rbacModel.findRoleById(id, companyId);
     if (role) roleNames.push(role.name);
   }
 
   // Upsert RBAC record with role names
-  return rbacModel.upsertRbac(prefix, userId, roleNames);
+  return rbacModel.upsertRbac(userId, roleNames, companyId);
 }
 
 
 // --- Users ---
-export const getAllUsers = async (prefix, limit = 50, offset = 0) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.findUsers(prefix, { limit, offset });
+export const getAllUsers = async (limit = 50, offset = 0, companyId = null) => {
+  return rbacModel.findUsers({ limit, offset }, companyId);
 };
 
-export const getUserById = async (prefix, userId) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.findUserById(prefix, userId);
+export const getUserById = async (userId, companyId = null) => {
+  return rbacModel.findUserById(userId, companyId);
 };
 
-export const createUser = async (prefix, payload) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.createUser(prefix, payload);
+export const createUser = async (payload, companyId = null) => {
+  return rbacModel.createUser(payload, companyId);
 };
 
-export const updateUser = async (prefix, userId, payload) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.updateUser(prefix, userId, payload);
+export const updateUser = async (userId, payload, companyId = null) => {
+  return rbacModel.updateUser(userId, payload, companyId);
 };
 
-export const deleteUser = async (prefix, userId) => {
-  if (!prefix) throw new Error('Tenant prefix is required');
-  return rbacModel.removeUser(prefix, userId);
+export const deleteUser = async (userId, companyId = null) => {
+  return rbacModel.removeUser(userId, companyId);
+};
+
+// --- PERMISSIONS ---
+export const getAllPermissions = async (limit = 50, offset = 0, companyId = null) => {
+  return rbacModel.findPermissions({ limit, offset }, companyId);
+};
+
+export const getPermissionById = async (permissionId, companyId = null) => {
+  return rbacModel.findPermissionById(permissionId, companyId);
+};
+
+export const createPermission = async (payload, companyId = null) => {
+  return rbacModel.createPermission(payload, companyId);
+};
+
+export const updatePermission = async (permissionId, payload, companyId = null) => {
+  return rbacModel.updatePermission(permissionId, payload, companyId);
+};
+
+export const removePermission = async (permissionId, companyId = null) => {
+  return rbacModel.removePermission(permissionId, companyId);
 };
