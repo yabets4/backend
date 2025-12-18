@@ -97,7 +97,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "run_migration": "node scripts/run_migration.js scripts/sql.sql"
   },
   "keywords": [],
   "author": "",
