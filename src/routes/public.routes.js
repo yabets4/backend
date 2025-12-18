@@ -1,3 +1,4 @@
+
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import pool from '../loaders/db.loader.js';
@@ -180,6 +181,58 @@ r.post('/auth/login-as/:company_id', async (req, res) => {
   } catch (err) {
     console.error('Login-as error:', err);
     return badRequest(res, 'Failed to login as tenant');
+  }
+});
+
+// ========== Employee Login Endpoint ==========
+r.post('/employee/login', async (req, res) => {
+  const { email, password } = req.body || {};
+  console.log('Employee login attempt:', { email, password });
+  if (!email || !password) {
+    return badRequest(res, 'email and password required');
+  }
+
+  try {
+    // Query employees table for matching email and join to get job_title
+    const result = await pool.query(
+      `SELECT e.company_id, e.employee_id, e.name, e.email, e.password, d.job_title
+       FROM employees e
+       LEFT JOIN employee_employment_details d
+         ON e.company_id = d.company_id AND e.employee_id = d.employee_id
+       WHERE e.email = $1
+       ORDER BY d.effective_from DESC NULLS LAST
+       LIMIT 1`,
+      [email]
+    );
+    const employee = result.rows[0];
+    if (!employee) return unauthorized(res, 'Employee not found');
+
+    // Direct password check (plain-text, can switch to bcrypt)
+    if (employee.password !== password) {
+      return unauthorized(res, 'Invalid credentials');
+    }
+
+    // Create JWT for employee, use job_title instead of role
+    const token = jwt.sign(
+      {
+        sub: employee.employee_id,
+        company_id: employee.company_id,
+        job_title: employee.job_title || 'employee',
+      },
+      appConfig.jwtSecret,
+      { expiresIn: '12h' }
+    );
+
+    return ok(res, {
+      token,
+      employee_id: employee.employee_id,
+      name: employee.name,
+      company_id: employee.company_id,
+      job_title: employee.job_title || 'employee',
+    });
+  } catch (err) {
+    console.error('Employee login error:', err);
+    return badRequest(res, 'Employee login failed');
   }
 });
 

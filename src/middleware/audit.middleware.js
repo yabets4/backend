@@ -20,7 +20,6 @@ export default function auditMiddleware() {
     return function (req, res, next) {
         // Skip audit if request method is GET or OPTIONS
         if (req.method === 'GET' || req.method === 'OPTIONS') {
-            console.debug('[audit] skipping method', req.method, req.originalUrl || req.url);
             return next();
         }
 
@@ -74,10 +73,8 @@ export default function auditMiddleware() {
                 const companyId = getCompanyId(req);
                 const endpoint = req.originalUrl || req.url || '';
 
-                console.debug('[audit] doLog', { method: req.method, endpoint, userId, companyId });
 
                 if (!userId || !companyId) {
-                    console.warn('Audit skipped: missing user or company id', { userId, companyId, endpoint });
                     return;
                 }
 
@@ -108,10 +105,8 @@ export default function auditMiddleware() {
                     details
                 ];
 
-                console.debug('[audit] inserting', { companyId, userId, endpoint, recordId, ip, ua, action, beforeData, afterData });
                 await pool.query(q, params);
             } catch (e) {
-                console.error('Audit middleware error:', e?.message || e);
             }
         };
 

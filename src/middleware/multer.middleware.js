@@ -94,6 +94,18 @@ const rawMaterialStorage = multer.diskStorage({
 });
 
 // ------------------------
+// PRODUCTS
+const productStorage = multer.diskStorage({
+  destination: async (req, file, cb) => {
+    const dir = await resolveCompanyFolder(req, 'products');
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  }
+});
+
+// ------------------------
 // ATTENDANCE CSV UPLOADS
 const attendanceStorage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -113,6 +125,7 @@ export const uploadCustomerPhoto = multer({ storage: customerStorage });
 export const uploadLeadAttachment = multer({ storage: leadStorage });
 export const uploadRawMaterialImage = multer({ storage: rawMaterialStorage });
 export const uploadAttendanceCsv = multer({ storage: attendanceStorage });
+export const uploadProductImage = multer({ storage: productStorage });
 
 // ------------------------
 // PROJECT FILES

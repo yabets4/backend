@@ -27,10 +27,10 @@ export default function expressLoader(app) {
   app.use(express.urlencoded({ extended: true }));
   app.use(helmet(securityConfig.helmet));
   app.use(morgan('dev'));
-  
+  app.use(rateLimitMiddleware);
 
 
   // routes will be plugged by routes.loader
   app.use(errorMiddleware);
-}
 
+}

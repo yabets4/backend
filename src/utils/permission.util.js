@@ -1,6 +1,5 @@
 import pool from '../loaders/db.loader.js';
 
-// Utility to work with admin RBAC tables: admin_rbac (user_id, roles JSONB) and admin_roles (name, permissions JSON)
 
 const normalizeToArray = (v) => {
   if (!v) return [];
