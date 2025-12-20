@@ -59,7 +59,7 @@ CREATE TABLE product_variants (
         ON DELETE CASCADE
 );
 
--- Product categories lookup table
+
 CREATE TABLE product_categories (
     company_id VARCHAR(20) NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
     category_id VARCHAR(50) NOT NULL,
@@ -67,6 +67,3 @@ CREATE TABLE product_categories (
     parent_category_id VARCHAR(50),
     PRIMARY KEY (company_id, category_id)
 );
-
--- Optional: sequence generator comment
--- Products use a tenant-level counter `companies.next_product_number` to create product_id like PRD-001

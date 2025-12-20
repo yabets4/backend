@@ -11,6 +11,7 @@ import { CheckCompanyStatus } from '../../middleware/checkTierLimit.middleware.j
 import Maintenance from './maintenance/maintenance.route.js';
 import permission from '../../middleware/permission.middleware.js';
 import Catagories from './Categories/main.route.js';
+import FinishedProduct from './Finished Product/finishedProduct.route.js';
 
 
 
@@ -27,8 +28,9 @@ r.use('/suppliers', Suppliers);
 //------ Tools & Machinery -------
 r.use('/tools-machinery', ToolsRoutes);
 r.use("/categories", Catagories);
-//------ Maintenance -------
+
 r.use('/maintenance', Maintenance);
+r.use('/finished-products', FinishedProduct);
 
 
 export default r;

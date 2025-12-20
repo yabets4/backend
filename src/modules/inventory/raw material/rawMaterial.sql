@@ -12,6 +12,7 @@ CREATE TABLE raw_materials (
     current_stock INT DEFAULT 0,
     location VARCHAR(20) NOT NULL REFERENCES locations(name),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id, location) REFERENCES locations(company_id, name),
     PRIMARY KEY (company_id, raw_material_id)
 );
 
@@ -70,5 +71,6 @@ CREATE TABLE locations (
     contact VARCHAR(100),
     operational_hours VARCHAR(100),
     created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    updated_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (company_id, name)
 );

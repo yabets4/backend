@@ -181,7 +181,7 @@ export const RawMaterialsModel = {
       const rmRes = await client.query(
         `INSERT INTO raw_materials (
           company_id, raw_material_id, name, category_id, uom,
-          cost_price, minimum_stock, shelf_life, supplier_id, location, current_stock
+            cost_price, minimum_stock, shelf_life, supplier_id, location, current_stock
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
         RETURNING company_id, raw_material_id`,
         [
