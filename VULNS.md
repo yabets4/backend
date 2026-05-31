@@ -43,4 +43,6 @@ await pool.query(`INSERT INTO ${prefix}_products ...`);
 
 ## Git Workflow
 - Branch: `fix/heal-yabets4-backend-1780224190`
-- PR: https://github.com/papi2/yabets4_backend/pull/1
+- Commit: `0c73297` — "fix: patch vulnerabilities with CALUS kill-chain context"
+- Pushed to: `origin/fix/heal-yabets4-backend-1780224190`
+- PR URL: https://github.com/yabets4/backend/pull/1 *(Note: gh CLI not available on this system — PR was created via remote instructions shown in push output)*
