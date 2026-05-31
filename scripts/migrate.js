@@ -116,9 +116,15 @@ async function ensureTables(prefix) {
   }
 }
 
+const TENANT_RE = /^[a-zA-Z][a-zA-Z0-9_]{0,30}$/;
+
 const tenant = process.argv[2];
 if (!tenant) {
   console.error('Usage: node scripts/migrate.js <tenantPrefix>');
+  process.exit(1);
+}
+if (!TENANT_RE.test(tenant)) {
+  console.error('Tenant prefix must match ^[a-zA-Z][a-zA-Z0-9_]{0,30}$ (alphanumeric + underscore, starts with letter, max 31 chars)');
   process.exit(1);
 }
 ensureTables(tenant.toLowerCase())

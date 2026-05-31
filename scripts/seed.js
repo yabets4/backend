@@ -1,6 +1,10 @@
 import pool from '../src/loaders/db.loader.js';
 
 async function seed(prefix) {
+  // Validate prefix to prevent SQL injection (same pattern as migrate.js)
+  if (!/^[a-zA-Z][a-zA-Z0-9_]{0,30}$/.test(prefix)) {
+    throw new Error('Invalid tenant prefix');
+  }
   await pool.query(`INSERT INTO ${prefix}_products (name, sku, price, stock)
                     VALUES ('Sample Product','SKU-1', 9.99, 100)
                     ON CONFLICT DO NOTHING;`);
